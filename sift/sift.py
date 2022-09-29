@@ -14,15 +14,24 @@ def process_page(page):
     # https://pythonhosted.org/mwxml/iteration.html#mwxml.Page
     eprint(f"{page.id:8} - {page.title}")
 
-    [revision] = list(page)  # Every page has exactly one revision
-    parsed = wtp.parse(revision.text)
+    info = {"id": page.id, "title": page.title}
 
-    links = []
-    for link in parsed.wikilinks:
-        start, end = link.span
-        links.append({"to": link.title, "start": start, "end": end})
+    if page.redirect:
+        info["redirect"] = page.redirect
+    else:
+        [revision] = list(page)  # Every page has exactly one revision
 
-    info = {"id": page.id, "title": page.title, "links": links}
+        length = len(revision.text)
+        info["length"] = length
+
+        # Parsing may fail for articles with length 0
+        if length > 0:
+            links = []
+            for link in wtp.parse(revision.text).wikilinks:
+                start, end = link.span
+                links.append((link.title, start, end))
+        info["links"] = links
+
     print(json.dumps(info, check_circular=False, separators=(",", ":")))
 
 
