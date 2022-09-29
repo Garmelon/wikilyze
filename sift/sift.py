@@ -20,17 +20,14 @@ def process_page(page):
         info["redirect"] = page.redirect
     else:
         [revision] = list(page)  # Every page has exactly one revision
+        if revision.text is not None:
+            info["length"] = len(revision.text)
 
-        length = len(revision.text)
-        info["length"] = length
-
-        # Parsing may fail for articles with length 0
-        if length > 0:
             links = []
             for link in wtp.parse(revision.text).wikilinks:
                 start, end = link.span
                 links.append((link.title, start, end))
-        info["links"] = links
+            info["links"] = links
 
     print(json.dumps(info, check_circular=False, separators=(",", ":")))
 
