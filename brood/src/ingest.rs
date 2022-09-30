@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader};
 
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 use crate::data::{Link, Page};
@@ -44,23 +44,23 @@ struct FirstStage {
     /// The first entry with id 0 represents a nonexistent link.
     pages: Vec<Page>,
     /// Map from title to index in [`Self::pages`] (used during the second pass).
-    pages_map: HashMap<String, u32>,
+    pages_map: FxHashMap<String, u32>,
     /// List with link info and index into [`Self::titles`].
     links: Vec<Link>,
     /// List with titles.
     titles: Vec<String>,
     /// Map from title to index in [`Self::titles`] (used during decoding).
-    titles_map: HashMap<String, u32>,
+    titles_map: FxHashMap<String, u32>,
 }
 
 impl FirstStage {
     fn new() -> Self {
         let mut result = Self {
             pages: vec![],
-            pages_map: HashMap::new(),
+            pages_map: FxHashMap::default(),
             links: vec![],
             titles: vec![],
-            titles_map: HashMap::new(),
+            titles_map: FxHashMap::default(),
         };
         result.push_page(0, 0, "this link does not exist".to_string(), false);
         result
