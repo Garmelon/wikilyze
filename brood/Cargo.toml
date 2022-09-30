@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ciborium = "0.2.0"
 clap = { version = "4.0.5", features = ["derive"] }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.145", features = ["derive"] }

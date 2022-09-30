@@ -178,5 +178,8 @@ pub fn ingest() -> io::Result<()> {
         }
     }
 
+    eprintln!("EXPORT");
+    ciborium::ser::into_writer(&second_stage, io::stdout()).unwrap();
+
     Ok(())
 }
