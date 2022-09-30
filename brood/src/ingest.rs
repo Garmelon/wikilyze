@@ -4,7 +4,7 @@ use std::io::{self, BufRead, BufReader};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::data::{Link, Page};
+use crate::data::{AdjacencyList, Link, Page};
 
 #[derive(Deserialize)]
 struct JsonPage {
@@ -28,7 +28,6 @@ Because of this, the import is a bit more complex and has two passes.
 
 The first pass imports the data into an adjacency-list-like format:
 - `pages`: List with page info and index in `links`
-- `pages_map`: Map from title to index in `pages` (used during the second pass)
 - `links`: List with link info and index in `titles`
 - `titles`: List with titles
 - `titles_map`: Map from title to index in `titles` (used during decoding)
@@ -43,8 +42,8 @@ struct FirstStage {
     ///
     /// The first entry with id 0 represents a nonexistent link.
     pages: Vec<Page>,
-    /// Map from title to index in [`Self::pages`] (used during the second pass).
-    pages_map: FxHashMap<String, u32>,
+    /// Map from index in [`Self::titles`] to index in [`Self::pages`] (used during the second pass).
+    pages_map: FxHashMap<u32, u32>,
     /// List with link info and index into [`Self::titles`].
     links: Vec<Link>,
     /// List with titles.
@@ -90,9 +89,10 @@ impl FirstStage {
 
     fn insert_page(&mut self, ns: u16, id: u32, title: String, redirect: bool) {
         // We know we haven't seen the page before
+        let title_idx = self.insert_title(title.clone());
         let idx = self.pages.len() as u32;
-        self.push_page(ns, id, title.clone(), redirect);
-        self.pages_map.insert(title, idx);
+        self.push_page(ns, id, title, redirect);
+        self.pages_map.insert(title_idx, idx);
     }
 
     fn insert_link(&mut self, to: u32, start: u32, end: u32) {
@@ -133,7 +133,7 @@ fn first_stage() -> io::Result<FirstStage> {
         first_stage.import_json_page(json_page);
 
         n += 1;
-        if n % 10_000 == 0 {
+        if n % 100_000 == 0 {
             eprintln!("{n} imported")
         }
     }
@@ -142,9 +142,41 @@ fn first_stage() -> io::Result<FirstStage> {
     Ok(first_stage)
 }
 
+fn second_stage(mut fs: FirstStage) -> AdjacencyList {
+    let mut n = 0;
+
+    for link in &mut fs.links {
+        if let Some(to) = fs.pages_map.get(&link.to) {
+            link.to = *to;
+        } else {
+            link.to = 0;
+        }
+
+        n += 1;
+        if n % 10_000_000 == 0 {
+            eprintln!("{n} links converted");
+        }
+    }
+
+    AdjacencyList {
+        pages: fs.pages,
+        links: fs.links,
+    }
+}
+
 pub fn ingest() -> io::Result<()> {
+    eprintln!("FIRST STAGE");
     let first_stage = first_stage()?;
-    eprintln!("{} pages", first_stage.pages.len() - 2);
-    eprintln!("{} links", first_stage.links.len());
+    eprintln!("SECOND STAGE");
+    let second_stage = second_stage(first_stage);
+
+    eprintln!("CONSISTENCY CHECK");
+    let range = 0..second_stage.pages.len() as u32;
+    for link in &second_stage.links {
+        if !range.contains(&link.to) {
+            eprintln!("Invalid link detected!");
+        }
+    }
+
     Ok(())
 }
