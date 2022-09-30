@@ -12,9 +12,9 @@ def eprint(*args, **kwargs):
 
 def process_page(page):
     # https://pythonhosted.org/mwxml/iteration.html#mwxml.Page
-    eprint(f"{page.id:8} - {page.title}")
+    eprint(f"{page.namespace:4}: {page.id:8} - {page.title}")
 
-    info = {"id": page.id, "title": page.title}
+    info = {"ns": page.namespace, "id": page.id, "title": page.title}
 
     if page.redirect:
         info["redirect"] = page.redirect
