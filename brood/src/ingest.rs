@@ -4,7 +4,7 @@ use std::io::{self, BufRead, BufReader};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::data::{AdjacencyList, Link, Page};
+use crate::data::{AdjacencyList, Link, Page, SlimAdjacencyList};
 
 #[derive(Deserialize)]
 struct JsonPage {
@@ -179,7 +179,9 @@ pub fn ingest() -> io::Result<()> {
     }
 
     eprintln!("EXPORT");
-    ciborium::ser::into_writer(&second_stage, io::stdout()).unwrap();
+    let data = SlimAdjacencyList::from_alist(second_stage);
+    ciborium::ser::into_writer(&data, io::stdout()).unwrap();
+    // simd_json::to_writer(io::stdout(), &data).unwrap();
 
     Ok(())
 }
