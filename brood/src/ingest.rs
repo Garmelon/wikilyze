@@ -18,7 +18,8 @@ pub fn ingest() -> io::Result<()> {
     let mut n_links = 0;
 
     for line in stdin.lines() {
-        let json_page = serde_json::from_str::<JsonPage>(&line?)?;
+        // let json_page = serde_json::from_str::<JsonPage>(&line?)?;
+        let json_page = simd_json::serde::from_str::<JsonPage>(&mut line?).unwrap();
 
         n_pages += 1;
         n_links += json_page.links.len();
