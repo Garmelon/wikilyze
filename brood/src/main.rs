@@ -1,4 +1,5 @@
 mod ingest;
+mod data;
 
 use std::io;
 
