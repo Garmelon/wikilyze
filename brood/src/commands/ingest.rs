@@ -206,12 +206,7 @@ pub fn ingest(datafile: &Path) -> io::Result<()> {
     let data = second_stage.into_adjacency_list();
 
     eprintln!(">> Consistency check");
-    let range = 0..data.pages.len() as u32;
-    for link in &data.links {
-        if !range.contains(&link.to) {
-            eprintln!("Invalid link detected!");
-        }
-    }
+    data.check_consistency();
 
     eprintln!(">> Export");
     let mut datafile = BufWriter::new(File::create(datafile)?);

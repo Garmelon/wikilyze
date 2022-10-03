@@ -24,6 +24,15 @@ pub struct AdjacencyList {
 }
 
 impl AdjacencyList {
+    pub fn check_consistency(&self) {
+        let range = 0..self.pages.len() as u32;
+        for link in &self.links {
+            if !range.contains(&link.to) {
+                panic!("Invalid link detected!");
+            }
+        }
+    }
+
     pub fn write<W: Write>(&self, mut to: W) -> io::Result<()> {
         let n_pages: u32 = self.pages.len() as u32;
         to.write_all(&n_pages.to_le_bytes())?;

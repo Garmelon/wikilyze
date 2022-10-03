@@ -9,6 +9,9 @@ pub fn reexport(from: &Path, to: &Path) -> io::Result<()> {
     let from = BufReader::new(File::open(from)?);
     let data = AdjacencyList::read(from)?;
 
+    eprintln!(">> Consistency check");
+    data.check_consistency();
+
     eprintln!(">> Export");
     let to = BufWriter::new(File::create(to)?);
     data.write(to)?;
