@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry;
-use std::io::{self, BufRead, BufReader};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, BufWriter};
 use std::path::Path;
 
 use rustc_hash::FxHashMap;
@@ -212,10 +213,9 @@ pub fn ingest(datafile: &Path) -> io::Result<()> {
         }
     }
 
-    // eprintln!("EXPORT");
-    // let data = SlimAdjacencyList::from_alist(second_stage);
-    // ciborium::ser::into_writer(&data, io::stdout()).unwrap();
-    // simd_json::to_writer(io::stdout(), &data).unwrap();
+    eprintln!(">> Export");
+    let mut datafile = BufWriter::new(File::create(datafile)?);
+    data.write(&mut datafile)?;
 
     Ok(())
 }
