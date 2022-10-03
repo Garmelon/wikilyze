@@ -72,13 +72,14 @@ impl FirstStage {
         }
     }
 
-    fn insert_page(&mut self, id: u32, title: String, redirect: bool) {
+    fn insert_page(&mut self, id: u32, length: u32, redirect: bool, title: String) {
         let link_idx = self.pages.len() as u32;
         self.pages.push(Page {
             link_idx,
             id,
-            title,
+            length,
             redirect,
+            title,
         });
     }
 
@@ -87,7 +88,7 @@ impl FirstStage {
     }
 
     fn import_json_page(&mut self, page: JsonPage) {
-        self.insert_page(page.id, page.title, page.redirect.is_some());
+        self.insert_page(page.id, page.length, page.redirect.is_some(), page.title);
         for (to, start, end) in page.links {
             let to = self.insert_title(util::normalize_link(&to));
             self.insert_link(to, start, end);
@@ -95,7 +96,12 @@ impl FirstStage {
     }
 
     fn finalize(&mut self) {
-        self.insert_page(0, "dummy page at the end of all pages".to_string(), false);
+        self.insert_page(
+            0,
+            0,
+            false,
+            "dummy page at the end of all pages".to_string(),
+        );
     }
 
     fn from_stdin() -> io::Result<Self> {
