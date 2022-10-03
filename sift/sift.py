@@ -12,22 +12,28 @@ def eprint(*args, **kwargs):
 
 def process_page(page):
     # https://pythonhosted.org/mwxml/iteration.html#mwxml.Page
-    eprint(f"{page.namespace:4}: {page.id:8} - {page.title}")
+    print(f"{page.namespace:4}: {page.id:8} - {page.title}")
 
-    info = {"ns": page.namespace, "id": page.id, "title": page.title}
+    [revision] = list(page)  # Every page has exactly one revision
+    text = revision.text or ""
+
+    links = []
+    for link in wtp.parse(text).wikilinks:
+        start, end = link.span
+        links.append((link.title, start, end))
+
+    info = {
+        "ns": page.namespace,
+        "id": page.id,
+        "title": page.title,
+        "length": len(text),
+        "links": links,
+    }
 
     if page.redirect:
+        assert len(links) == 1
+        assert links[0] == page.redirect
         info["redirect"] = page.redirect
-    else:
-        [revision] = list(page)  # Every page has exactly one revision
-        if revision.text is not None:
-            info["length"] = len(revision.text)
-
-            links = []
-            for link in wtp.parse(revision.text).wikilinks:
-                start, end = link.span
-                links.append((link.title, start, end))
-            info["links"] = links
 
     print(json.dumps(info, check_circular=False, separators=(",", ":")))
 
