@@ -1,8 +1,9 @@
-mod ingest;
 mod data;
-mod test;
+mod ingest;
+mod util;
 
 use std::io;
+use std::path::PathBuf;
 
 use clap::Parser;
 
@@ -10,13 +11,18 @@ use clap::Parser;
 enum Command {
     /// Read sift data on stdin and output brood data on stdout.
     Ingest,
-    /// Test various things
-    Test,
+}
+
+#[derive(Debug, Parser)]
+struct Args {
+    datafile: PathBuf,
+    #[command(subcommand)]
+    command: Command,
 }
 
 fn main() -> io::Result<()> {
-    match Command::parse() {
-        Command::Ingest => ingest::ingest(),
-        Command::Test => test::test(),
+    let args = Args::parse();
+    match args.command {
+        Command::Ingest => ingest::ingest(&args.datafile),
     }
 }
