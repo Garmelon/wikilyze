@@ -11,6 +11,8 @@ use clap::Parser;
 enum Command {
     /// Read sift data on stdin and output brood data.
     Ingest,
+    /// Read and reexport brood data.
+    Reexport { to: PathBuf },
 }
 
 #[derive(Debug, Parser)]
@@ -24,5 +26,6 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Ingest => commands::ingest(&args.datafile),
+        Command::Reexport { to } => commands::reexport(&args.datafile, &to),
     }
 }
