@@ -14,7 +14,7 @@ def eprint(*args, **kwargs):
 def process_page(page):
     if page.namespace != 0:
         return
-    eprint(f"{page.id:8} - {page.title}")
+    eprint(f"{page.id:8} - {page.title!r}")
 
     [revision] = list(page)  # Every page has exactly one revision
     text = revision.text or ""
