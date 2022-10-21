@@ -13,6 +13,8 @@ enum Command {
     Ingest,
     /// Read and reexport brood data.
     Reexport { to: PathBuf },
+    /// Find a path from one article to another.
+    Path { from: String, to: String },
 }
 
 #[derive(Debug, Parser)]
@@ -27,5 +29,6 @@ fn main() -> io::Result<()> {
     match args.command {
         Command::Ingest => commands::ingest(&args.datafile),
         Command::Reexport { to } => commands::reexport(&args.datafile, &to),
+        Command::Path { from, to } => commands::path(&args.datafile, &from, &to),
     }
 }
