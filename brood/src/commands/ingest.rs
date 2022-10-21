@@ -73,7 +73,7 @@ impl FirstStage {
     }
 
     fn insert_page(&mut self, id: u32, length: u32, redirect: bool, title: String) {
-        let link_idx = self.pages.len() as u32;
+        let link_idx = self.links.len() as u32;
         self.pages.push(Page {
             link_idx,
             id,
@@ -156,7 +156,7 @@ impl SecondStage {
 
     fn insert_page(&mut self, page: &Page<()>) {
         let mut page = page.clone();
-        page.link_idx = self.pages.len() as u32;
+        page.link_idx = self.links.len() as u32;
         self.pages.push(page);
     }
 
