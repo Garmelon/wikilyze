@@ -89,6 +89,19 @@ impl Page<()> {
     }
 }
 
+impl<P> Page<P> {
+    pub fn change_data<P2>(self, data: P2) -> Page<P2> {
+        Page {
+            link_idx: self.link_idx,
+            id: self.id,
+            length: self.length,
+            redirect: self.redirect,
+            title: self.title,
+            data,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Link<L> {
     pub to: u32,
@@ -120,7 +133,18 @@ impl Link<()> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl<P> Link<P> {
+    pub fn change_data<P2>(self, data: P2) -> Link<P2> {
+        Link {
+            to: self.to,
+            start: self.start,
+            end: self.end,
+            data,
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AdjacencyList<P, L> {
     pub pages: Vec<Page<P>>,
     pub links: Vec<Link<L>>,
@@ -183,6 +207,32 @@ impl<P, L> AdjacencyList<P, L> {
             if !range.contains(&link.to) {
                 panic!("Invalid link detected!");
             }
+        }
+    }
+
+    pub fn change_page_data<P2: Clone>(self, data: P2) -> AdjacencyList<P2, L> {
+        let pages = self
+            .pages
+            .into_iter()
+            .map(|p| p.change_data(data.clone()))
+            .collect::<Vec<_>>();
+
+        AdjacencyList {
+            pages,
+            links: self.links,
+        }
+    }
+
+    pub fn change_link_data<L2: Clone>(self, data: L2) -> AdjacencyList<P, L2> {
+        let links = self
+            .links
+            .into_iter()
+            .map(|l| l.change_data(data.clone()))
+            .collect::<Vec<_>>();
+
+        AdjacencyList {
+            pages: self.pages,
+            links,
         }
     }
 }
