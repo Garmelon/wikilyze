@@ -41,9 +41,9 @@ form a proper adjacency list.
 
 struct FirstStage {
     /// List with page info and index into [`Self::links`].
-    pages: Vec<Page>,
+    pages: Vec<Page<()>>,
     /// List with link info and index into [`Self::titles`].
-    links: Vec<Link>,
+    links: Vec<Link<()>>,
     /// List with titles.
     titles: Vec<String>,
     /// Map from normalized title to index in [`Self::titles`].
@@ -80,11 +80,17 @@ impl FirstStage {
             length,
             redirect,
             title,
+            data: (),
         });
     }
 
     fn insert_link(&mut self, to: u32, start: u32, end: u32) {
-        self.links.push(Link { to, start, end });
+        self.links.push(Link {
+            to,
+            start,
+            end,
+            data: (),
+        });
     }
 
     fn import_json_page(&mut self, page: JsonPage) {
@@ -125,9 +131,9 @@ impl FirstStage {
 
 struct SecondStage {
     /// List with page info and index into [`Self::links`].
-    pages: Vec<Page>,
+    pages: Vec<Page<()>>,
     /// List with link info and index into [`Self::pages`].
-    links: Vec<Link>,
+    links: Vec<Link<()>>,
     /// Map from normalized title to index in [`Self::pages`].
     pages_map: FxHashMap<String, u32>,
 }
@@ -141,20 +147,20 @@ impl SecondStage {
         }
     }
 
-    fn initialize_pages_map(&mut self, pages: &[Page]) {
+    fn initialize_pages_map(&mut self, pages: &[Page<()>]) {
         for (idx, page) in pages.iter().enumerate() {
             let title = util::normalize_link(&page.title);
             self.pages_map.insert(title, idx as u32);
         }
     }
 
-    fn insert_page(&mut self, page: &Page) {
+    fn insert_page(&mut self, page: &Page<()>) {
         let mut page = page.clone();
         page.link_idx = self.pages.len() as u32;
         self.pages.push(page);
     }
 
-    fn insert_link(&mut self, mut link: Link, titles: &[String]) {
+    fn insert_link(&mut self, mut link: Link<()>, titles: &[String]) {
         let title = &titles[link.to as usize];
         if let Some(page_idx) = self.pages_map.get(title) {
             link.to = *page_idx;
@@ -162,7 +168,7 @@ impl SecondStage {
         }
     }
 
-    fn finalize(&mut self, pages: &[Page]) {
+    fn finalize(&mut self, pages: &[Page<()>]) {
         self.insert_page(pages.last().unwrap());
     }
 
@@ -194,7 +200,7 @@ impl SecondStage {
         result
     }
 
-    fn into_adjacency_list(self) -> AdjacencyList {
+    fn into_adjacency_list(self) -> AdjacencyList<(), ()> {
         AdjacencyList {
             pages: self.pages,
             links: self.links,

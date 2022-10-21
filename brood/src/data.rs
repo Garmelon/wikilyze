@@ -51,15 +51,16 @@ mod ioutil {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Page {
+pub struct Page<P> {
     pub link_idx: u32,
     pub id: u32,
     pub length: u32,
     pub redirect: bool,
     pub title: String,
+    pub data: P,
 }
 
-impl Page {
+impl Page<()> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.link_idx, to)?;
         ioutil::write_u32(self.id, to)?;
@@ -83,18 +84,20 @@ impl Page {
             length,
             redirect,
             title,
+            data: (),
         })
     }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Link {
+pub struct Link<L> {
     pub to: u32,
     pub start: u32,
     pub end: u32,
+    pub data: L,
 }
 
-impl Link {
+impl Link<()> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.to, to)?;
         ioutil::write_u32(self.start, to)?;
@@ -108,42 +111,22 @@ impl Link {
         let start = ioutil::read_u32(from)?;
         let end = ioutil::read_u32(from)?;
 
-        Ok(Self { to, start, end })
+        Ok(Self {
+            to,
+            start,
+            end,
+            data: (),
+        })
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AdjacencyList {
-    pub pages: Vec<Page>,
-    pub links: Vec<Link>,
+pub struct AdjacencyList<P, L> {
+    pub pages: Vec<Page<P>>,
+    pub links: Vec<Link<L>>,
 }
 
-impl AdjacencyList {
-    pub fn check_consistency(&self) {
-        // Check that all types are large enough
-        assert!(self.pages.len() <= u32::MAX as usize, "pages len");
-        assert!(self.links.len() <= u32::MAX as usize, "links len");
-        for page in &self.pages {
-            assert!(page.link_idx <= u32::MAX as u32, "page link_idx");
-            assert!(page.id <= u32::MAX as u32, "page id");
-            assert!(page.length <= u32::MAX as u32, "page length");
-            assert!(page.title.len() <= u8::MAX as usize, "page title len");
-        }
-        for link in &self.links {
-            assert!(link.to <= u32::MAX as u32, "link to");
-            assert!(link.start <= u32::MAX as u32, "link start");
-            assert!(link.end <= u32::MAX as u32, "link end");
-        }
-
-        // Check that all links contain valid indices
-        let range = 0..self.pages.len() as u32;
-        for link in &self.links {
-            if !range.contains(&link.to) {
-                panic!("Invalid link detected!");
-            }
-        }
-    }
-
+impl AdjacencyList<(), ()> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.pages.len() as u32, to)?;
         ioutil::write_u32(self.links.len() as u32, to)?;
@@ -174,5 +157,32 @@ impl AdjacencyList {
         }
 
         Ok(Self { pages, links })
+    }
+}
+
+impl<P, L> AdjacencyList<P, L> {
+    pub fn check_consistency(&self) {
+        // Check that all types are large enough
+        assert!(self.pages.len() <= u32::MAX as usize, "pages len");
+        assert!(self.links.len() <= u32::MAX as usize, "links len");
+        for page in &self.pages {
+            assert!(page.link_idx <= u32::MAX as u32, "page link_idx");
+            assert!(page.id <= u32::MAX as u32, "page id");
+            assert!(page.length <= u32::MAX as u32, "page length");
+            assert!(page.title.len() <= u8::MAX as usize, "page title len");
+        }
+        for link in &self.links {
+            assert!(link.to <= u32::MAX as u32, "link to");
+            assert!(link.start <= u32::MAX as u32, "link start");
+            assert!(link.end <= u32::MAX as u32, "link end");
+        }
+
+        // Check that all links contain valid indices
+        let range = 0..self.pages.len() as u32;
+        for link in &self.links {
+            if !range.contains(&link.to) {
+                panic!("Invalid link detected!");
+            }
+        }
     }
 }
