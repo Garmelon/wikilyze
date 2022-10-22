@@ -79,12 +79,20 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
             },
         });
 
-        for (to, start, end) in json_page.links {
+        if let Some(to) = json_page.redirect {
             let to = titles.insert(util::normalize_link(&to));
             result.links.push(Link {
                 to,
-                data: LinkInfo { start, end },
+                data: LinkInfo { start: 0, end: 0 },
             });
+        } else {
+            for (to, start, end) in json_page.links {
+                let to = titles.insert(util::normalize_link(&to));
+                result.links.push(Link {
+                    to,
+                    data: LinkInfo { start, end },
+                });
+            }
         }
 
         if (i + 1) % 100_000 == 0 {
