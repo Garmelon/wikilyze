@@ -159,6 +159,8 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
     println!(">> Locate from and to");
     let from_idx = resolve_redirects(&data, find_index_of_title(&pages, from));
     let to_idx = resolve_redirects(&data, find_index_of_title(&pages, to));
+    println!("From: {:?}", data.page(from_idx).data.title);
+    println!("To:   {:?}", data.page(to_idx).data.title);
 
     println!(">> Find path");
     let path = dijkstra(data, from_idx, to_idx);
@@ -168,9 +170,9 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
         for page_idx in path {
             let page = &pages[page_idx as usize];
             if page.data.redirect {
-                println!(" v {}", page.data.title);
+                println!(" v {:?}", page.data.title);
             } else {
-                println!(" - {}", page.data.title);
+                println!(" - {:?}", page.data.title);
             }
         }
     } else {
