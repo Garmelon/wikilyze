@@ -23,6 +23,10 @@ enum Command {
         #[clap(short, long)]
         flip: bool,
     },
+    /// Find the longest shortest path starting at an article.
+    LongestShortestPath {
+        from: String,
+    },
     // Print all page titles.
     ListPages,
 }
@@ -45,6 +49,9 @@ fn main() -> io::Result<()> {
             } else {
                 commands::path::path(&args.datafile, &from, &to)
             }
+        }
+        Command::LongestShortestPath { from } => {
+            commands::longest_shortest_path::run(&args.datafile, &from)
         }
         Command::ListPages => commands::list_pages::run(&args.datafile),
     }
