@@ -151,7 +151,11 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
         println!("Path found:");
         for page_idx in path {
             let page = &pages[page_idx as usize];
-            println!(" - {}", page.data.title);
+            if page.data.redirect {
+                println!(" v {}", page.data.title);
+            } else {
+                println!(" - {}", page.data.title);
+            }
         }
     } else {
         println!("No path found");
