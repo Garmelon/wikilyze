@@ -12,9 +12,16 @@ enum Command {
     /// Read sift data on stdin and output brood data.
     Ingest,
     /// Read and reexport brood data.
-    Reexport { to: PathBuf },
+    Reexport {
+        to: PathBuf,
+    },
     /// Find a path from one article to another.
-    Path { from: String, to: String },
+    Path {
+        from: String,
+        to: String,
+    },
+    // Print all page titles.
+    ListPages,
 }
 
 #[derive(Debug, Parser)]
@@ -27,8 +34,9 @@ struct Args {
 fn main() -> io::Result<()> {
     let args = Args::parse();
     match args.command {
-        Command::Ingest => commands::ingest(&args.datafile),
-        Command::Reexport { to } => commands::reexport(&args.datafile, &to),
-        Command::Path { from, to } => commands::path(&args.datafile, &from, &to),
+        Command::Ingest => commands::ingest::ingest(&args.datafile),
+        Command::Reexport { to } => commands::reexport::reexport(&args.datafile, &to),
+        Command::Path { from, to } => commands::path::path(&args.datafile, &from, &to),
+        Command::ListPages => commands::list_pages::run(&args.datafile),
     }
 }
