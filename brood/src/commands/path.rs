@@ -3,31 +3,8 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 
-use crate::data::{AdjacencyList, LinkInfo, Page, PageInfo};
+use crate::data::{AdjacencyList, LinkInfo, PageInfo};
 use crate::util;
-
-fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
-    let title = util::normalize_link(title);
-    pages
-        .iter()
-        .enumerate()
-        .find(|(_, p)| util::normalize_link(&p.data.title) == title)
-        .map(|(i, _)| i)
-        .expect("invalid title") as u32
-}
-
-fn resolve_redirects(data: &AdjacencyList<PageInfo, LinkInfo>, mut page_idx: u32) -> u32 {
-    loop {
-        if data.page(page_idx).data.redirect {
-            if let Some(link_idx) = data.link_redirect(page_idx) {
-                page_idx = data.link(link_idx).to;
-                continue;
-            }
-        }
-
-        return page_idx;
-    }
-}
 
 struct DijkstraPageInfo {
     cost: u32,
@@ -54,6 +31,7 @@ impl DijkstraLinkInfo {
         Self {
             cost: 1,
             // cost: 1000 + info.start,
+            // cost: 10000 + info.start,
             // cost: 1000 + info.start / 10,
         }
     }
@@ -157,8 +135,8 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
     let pages = data.pages.clone();
 
     println!(">> Locate from and to");
-    let from_idx = resolve_redirects(&data, find_index_of_title(&pages, from));
-    let to_idx = resolve_redirects(&data, find_index_of_title(&pages, to));
+    let from_idx = util::resolve_redirects(&data, util::find_index_of_title(&pages, from));
+    let to_idx = util::resolve_redirects(&data, util::find_index_of_title(&pages, to));
     println!("From: {:?}", data.page(from_idx).data.title);
     println!("To:   {:?}", data.page(to_idx).data.title);
 
