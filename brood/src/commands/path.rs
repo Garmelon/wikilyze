@@ -20,13 +20,15 @@ fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
 struct DijkstraPageInfo {
     cost: u32,
     prev_page_idx: u32,
+    redirect: bool,
 }
 
-impl Default for DijkstraPageInfo {
-    fn default() -> Self {
+impl DijkstraPageInfo {
+    fn from_page_info(info: PageInfo) -> Self {
         Self {
             cost: u32::MAX,
             prev_page_idx: u32::MAX,
+            redirect: info.redirect,
         }
     }
 }
@@ -39,7 +41,7 @@ impl DijkstraLinkInfo {
     const BASE_COST: u32 = 1000;
 
     fn from_link_info(info: LinkInfo) -> Self {
-        DijkstraLinkInfo {
+        Self {
             cost: Self::BASE_COST + info.start,
         }
     }
@@ -81,7 +83,7 @@ fn dijkstra(
 ) -> Option<Vec<u32>> {
     println!("> Prepare state");
     let mut data = data
-        .change_page_data(&|_| DijkstraPageInfo::default())
+        .change_page_data(&DijkstraPageInfo::from_page_info)
         .change_link_data(&DijkstraLinkInfo::from_link_info);
     let mut queue = BinaryHeap::new();
     data.page_mut(from_idx).data.cost = 0;
@@ -94,16 +96,18 @@ fn dijkstra(
             break;
         }
 
-        if cost > data.page(page_idx).data.cost {
+        let page = data.page(page_idx);
+        if cost > page.data.cost {
             // This queue entry is outdated
             continue;
         }
 
+        let redirect = page.data.redirect;
         for link_idx in data.link_range(page_idx) {
             let link = data.link(link_idx);
 
             let next = Entry {
-                cost: cost + link.data.cost,
+                cost: cost + if redirect { 0 } else { link.data.cost },
                 page_idx: link.to,
             };
 
