@@ -94,7 +94,7 @@ impl Page<PageInfo> {
 }
 
 impl<P> Page<P> {
-    pub fn change_data<P2>(self, f: &impl Fn(P) -> P2) -> Page<P2> {
+    pub fn change_data<P2>(self, f: impl Fn(P) -> P2) -> Page<P2> {
         Page {
             link_idx: self.link_idx,
             data: f(self.data),
@@ -136,7 +136,7 @@ impl Link<LinkInfo> {
 }
 
 impl<L> Link<L> {
-    pub fn change_data<L2>(self, f: &impl Fn(L) -> L2) -> Link<L2> {
+    pub fn change_data<L2>(self, f: impl Fn(L) -> L2) -> Link<L2> {
         Link {
             to: self.to,
             data: f(self.data),
@@ -240,7 +240,7 @@ impl<P, L> AdjacencyList<P, L> {
         &mut self.links[idx as usize]
     }
 
-    pub fn change_page_data<P2>(self, page_f: &impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
+    pub fn change_page_data<P2>(self, page_f: impl Fn(P) -> P2 + Copy) -> AdjacencyList<P2, L> {
         let pages = self
             .pages
             .into_iter()
@@ -253,7 +253,7 @@ impl<P, L> AdjacencyList<P, L> {
         }
     }
 
-    pub fn change_link_data<L2>(self, link_f: &impl Fn(L) -> L2) -> AdjacencyList<P, L2> {
+    pub fn change_link_data<L2>(self, link_f: impl Fn(L) -> L2 + Copy) -> AdjacencyList<P, L2> {
         let links = self
             .links
             .into_iter()

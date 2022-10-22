@@ -83,8 +83,8 @@ fn dijkstra(
 ) -> Option<Vec<u32>> {
     println!("> Prepare state");
     let mut data = data
-        .change_page_data(&DijkstraPageInfo::from_page_info)
-        .change_link_data(&DijkstraLinkInfo::from_link_info);
+        .change_page_data(DijkstraPageInfo::from_page_info)
+        .change_link_data(DijkstraLinkInfo::from_link_info);
     let mut queue = BinaryHeap::new();
     data.page_mut(from_idx).data.cost = 0;
     queue.push(Entry::new(0, from_idx));
