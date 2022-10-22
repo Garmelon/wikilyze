@@ -38,11 +38,11 @@ struct DijkstraLinkInfo {
 }
 
 impl DijkstraLinkInfo {
-    const BASE_COST: u32 = 1000;
-
     fn from_link_info(info: LinkInfo) -> Self {
         Self {
-            cost: Self::BASE_COST + info.start,
+            cost: 1,
+            // cost: 1000 + info.start,
+            // cost: 1000 + info.start / 10,
         }
     }
 }
