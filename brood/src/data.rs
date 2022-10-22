@@ -1,4 +1,5 @@
 use std::io::{self, Read, Write};
+use std::ops::Range;
 
 mod ioutil {
     use std::io::{self, Read, Write};
@@ -217,6 +218,28 @@ impl AdjacencyList<PageInfo, LinkInfo> {
 }
 
 impl<P, L> AdjacencyList<P, L> {
+    pub fn page(&self, idx: u32) -> &Page<P> {
+        &self.pages[idx as usize]
+    }
+
+    pub fn page_mut(&mut self, idx: u32) -> &mut Page<P> {
+        &mut self.pages[idx as usize]
+    }
+
+    pub fn link_range(&self, page_idx: u32) -> Range<u32> {
+        let start_idx = self.page(page_idx).link_idx;
+        let end_idx = self.page(page_idx + 1).link_idx;
+        start_idx..end_idx
+    }
+
+    pub fn link(&self, idx: u32) -> &Link<L> {
+        &self.links[idx as usize]
+    }
+
+    pub fn link_mut(&mut self, idx: u32) -> &mut Link<L> {
+        &mut self.links[idx as usize]
+    }
+
     pub fn change_page_data<P2>(self, page_f: &impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
         let pages = self
             .pages
