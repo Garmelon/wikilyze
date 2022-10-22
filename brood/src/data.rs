@@ -214,6 +214,19 @@ impl AdjacencyList<PageInfo, LinkInfo> {
                 panic!("Invalid link detected!");
             }
         }
+
+        // Check that all redirect pages have exactly one link
+        for page_idx in 0..self.pages.len() as u32 - 1 {
+            let page = self.page(page_idx);
+            if page.data.redirect {
+                let start_idx = page.link_idx;
+                let end_idx = self.page(page_idx + 1).link_idx;
+                let n_links = end_idx - start_idx;
+                if n_links != 1 {
+                    panic!("Redirect {:?} has {n_links} links", page.data.title);
+                }
+            }
+        }
     }
 }
 

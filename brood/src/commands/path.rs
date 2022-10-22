@@ -11,10 +11,20 @@ fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
     pages
         .iter()
         .enumerate()
-        .filter(|(_, p)| !p.data.redirect)
         .find(|(_, p)| util::normalize_link(&p.data.title) == title)
         .map(|(i, _)| i)
         .expect("invalid title") as u32
+}
+
+fn resolve_redirects(data: &AdjacencyList<PageInfo, LinkInfo>, mut page_idx: u32) -> u32 {
+    loop {
+        let page = &data.page(page_idx);
+        if page.data.redirect {
+            page_idx = data.link(page.link_idx).to;
+        } else {
+            break page_idx;
+        }
+    }
 }
 
 struct DijkstraPageInfo {
@@ -145,8 +155,8 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
     let pages = data.pages.clone();
 
     println!(">> Locate from and to");
-    let from_idx = find_index_of_title(&pages, from);
-    let to_idx = find_index_of_title(&pages, to);
+    let from_idx = resolve_redirects(&data, find_index_of_title(&pages, from));
+    let to_idx = resolve_redirects(&data, find_index_of_title(&pages, to));
 
     println!(">> Find path");
     let path = dijkstra(data, from_idx, to_idx);
