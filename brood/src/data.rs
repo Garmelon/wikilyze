@@ -1,7 +1,5 @@
 use std::io::{self, Read, Write};
 
-use serde::{Deserialize, Serialize};
-
 mod ioutil {
     use std::io::{self, Read, Write};
 
@@ -50,23 +48,27 @@ mod ioutil {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Page<P> {
-    pub link_idx: u32,
+#[derive(Debug, Clone)]
+pub struct PageInfo {
     pub id: u32,
     pub length: u32,
     pub redirect: bool,
     pub title: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Page<P> {
+    pub link_idx: u32,
     pub data: P,
 }
 
-impl Page<()> {
+impl Page<PageInfo> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.link_idx, to)?;
-        ioutil::write_u32(self.id, to)?;
-        ioutil::write_u32(self.length, to)?;
-        ioutil::write_u8(if self.redirect { 1 } else { 0 }, to)?;
-        ioutil::write_str(&self.title, to)?;
+        ioutil::write_u32(self.data.id, to)?;
+        ioutil::write_u32(self.data.length, to)?;
+        ioutil::write_u8(if self.data.redirect { 1 } else { 0 }, to)?;
+        ioutil::write_str(&self.data.title, to)?;
 
         Ok(())
     }
@@ -80,41 +82,42 @@ impl Page<()> {
 
         Ok(Self {
             link_idx,
-            id,
-            length,
-            redirect,
-            title,
-            data: (),
+            data: PageInfo {
+                id,
+                length,
+                redirect,
+                title,
+            },
         })
     }
 }
 
 impl<P> Page<P> {
-    pub fn change_data<P2>(self, data: P2) -> Page<P2> {
+    pub fn change_data<P2>(self, f: &impl Fn(P) -> P2) -> Page<P2> {
         Page {
             link_idx: self.link_idx,
-            id: self.id,
-            length: self.length,
-            redirect: self.redirect,
-            title: self.title,
-            data,
+            data: f(self.data),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Link<L> {
-    pub to: u32,
+#[derive(Debug, Clone, Copy)]
+pub struct LinkInfo {
     pub start: u32,
     pub end: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Link<L> {
+    pub to: u32,
     pub data: L,
 }
 
-impl Link<()> {
+impl Link<LinkInfo> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.to, to)?;
-        ioutil::write_u32(self.start, to)?;
-        ioutil::write_u32(self.end, to)?;
+        ioutil::write_u32(self.data.start, to)?;
+        ioutil::write_u32(self.data.end, to)?;
 
         Ok(())
     }
@@ -126,31 +129,35 @@ impl Link<()> {
 
         Ok(Self {
             to,
-            start,
-            end,
-            data: (),
+            data: LinkInfo { start, end },
         })
     }
 }
 
-impl<P> Link<P> {
-    pub fn change_data<P2>(self, data: P2) -> Link<P2> {
+impl<L> Link<L> {
+    pub fn change_data<L2>(self, f: &impl Fn(L) -> L2) -> Link<L2> {
         Link {
             to: self.to,
-            start: self.start,
-            end: self.end,
-            data,
+            data: f(self.data),
         }
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AdjacencyList<P, L> {
     pub pages: Vec<Page<P>>,
     pub links: Vec<Link<L>>,
 }
 
-impl AdjacencyList<(), ()> {
+impl<P, L> Default for AdjacencyList<P, L> {
+    fn default() -> Self {
+        Self {
+            pages: Default::default(),
+            links: Default::default(),
+        }
+    }
+}
+
+impl AdjacencyList<PageInfo, LinkInfo> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.pages.len() as u32, to)?;
         ioutil::write_u32(self.links.len() as u32, to)?;
@@ -182,23 +189,21 @@ impl AdjacencyList<(), ()> {
 
         Ok(Self { pages, links })
     }
-}
 
-impl<P, L> AdjacencyList<P, L> {
     pub fn check_consistency(&self) {
         // Check that all types are large enough
         assert!(self.pages.len() <= u32::MAX as usize, "pages len");
         assert!(self.links.len() <= u32::MAX as usize, "links len");
         for page in &self.pages {
             assert!(page.link_idx <= u32::MAX as u32, "page link_idx");
-            assert!(page.id <= u32::MAX as u32, "page id");
-            assert!(page.length <= u32::MAX as u32, "page length");
-            assert!(page.title.len() <= u8::MAX as usize, "page title len");
+            assert!(page.data.id <= u32::MAX as u32, "page id");
+            assert!(page.data.length <= u32::MAX as u32, "page length");
+            assert!(page.data.title.len() <= u8::MAX as usize, "page title len");
         }
         for link in &self.links {
             assert!(link.to <= u32::MAX as u32, "link to");
-            assert!(link.start <= u32::MAX as u32, "link start");
-            assert!(link.end <= u32::MAX as u32, "link end");
+            assert!(link.data.start <= u32::MAX as u32, "link start");
+            assert!(link.data.end <= u32::MAX as u32, "link end");
         }
 
         // Check that all links contain valid indices
@@ -209,12 +214,14 @@ impl<P, L> AdjacencyList<P, L> {
             }
         }
     }
+}
 
-    pub fn change_page_data<P2: Clone>(self, data: P2) -> AdjacencyList<P2, L> {
+impl<P, L> AdjacencyList<P, L> {
+    pub fn change_page_data<P2: Clone>(self, page_f: &impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
         let pages = self
             .pages
             .into_iter()
-            .map(|p| p.change_data(data.clone()))
+            .map(|p| p.change_data(page_f))
             .collect::<Vec<_>>();
 
         AdjacencyList {
@@ -223,11 +230,11 @@ impl<P, L> AdjacencyList<P, L> {
         }
     }
 
-    pub fn change_link_data<L2: Clone>(self, data: L2) -> AdjacencyList<P, L2> {
+    pub fn change_link_data<L2: Clone>(self, link_f: &impl Fn(L) -> L2) -> AdjacencyList<P, L2> {
         let links = self
             .links
             .into_iter()
-            .map(|l| l.change_data(data.clone()))
+            .map(|l| l.change_data(link_f))
             .collect::<Vec<_>>();
 
         AdjacencyList {

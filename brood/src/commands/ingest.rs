@@ -6,7 +6,7 @@ use std::path::Path;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::data::{AdjacencyList, Link, Page};
+use crate::data::{AdjacencyList, Link, LinkInfo, Page, PageInfo};
 use crate::util;
 
 #[derive(Deserialize)]
@@ -61,7 +61,7 @@ impl Titles {
     }
 }
 
-fn first_stage() -> io::Result<(AdjacencyList<(), ()>, Titles)> {
+fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
     let mut titles = Titles::default();
     let mut result = AdjacencyList::default();
 
@@ -71,20 +71,19 @@ fn first_stage() -> io::Result<(AdjacencyList<(), ()>, Titles)> {
 
         result.pages.push(Page {
             link_idx: result.links.len() as u32,
-            id: json_page.id,
-            length: json_page.length,
-            redirect: json_page.redirect.is_some(),
-            title: json_page.title,
-            data: (),
+            data: PageInfo {
+                id: json_page.id,
+                length: json_page.length,
+                redirect: json_page.redirect.is_some(),
+                title: json_page.title,
+            },
         });
 
         for (to, start, end) in json_page.links {
             let to = titles.insert(util::normalize_link(&to));
             result.links.push(Link {
                 to,
-                start,
-                end,
-                data: (),
+                data: LinkInfo { start, end },
             });
         }
 
@@ -100,23 +99,29 @@ fn first_stage() -> io::Result<(AdjacencyList<(), ()>, Titles)> {
 
     result.pages.push(Page {
         link_idx: result.links.len() as u32,
-        id: 0,
-        length: 0,
-        redirect: false,
-        title: "Sentinel page at the end of all pages, Q2AKO3OYzyitmCJURghJ".to_string(),
-        data: (),
+        data: PageInfo {
+            id: 0,
+            length: 0,
+            redirect: false,
+            title: "Sentinel page at the end of all pages, Q2AKO3OYzyitmCJURghJ".to_string(),
+        },
     });
 
     Ok((result, titles))
 }
 
 /// Create map from normalized title to index in pages.
-fn initialize_pages_map(pages: &[Page<()>]) -> FxHashMap<String, u32> {
+fn initialize_pages_map(pages: &[Page<PageInfo>]) -> FxHashMap<String, u32> {
     let mut result = FxHashMap::default();
     for (i, p) in pages.iter().enumerate() {
-        match result.entry(util::normalize_link(&p.title)) {
+        match result.entry(util::normalize_link(&p.data.title)) {
             Entry::Occupied(entry) => {
-                eprintln!("{:?} already exists at index {}", p.title, entry.get());
+                eprintln!(
+                    "{:?} already exists at index {} as {:?}",
+                    p.data.title,
+                    entry.get(),
+                    util::normalize_link(&p.data.title)
+                );
             }
             Entry::Vacant(entry) => {
                 entry.insert(i as u32);
@@ -126,7 +131,10 @@ fn initialize_pages_map(pages: &[Page<()>]) -> FxHashMap<String, u32> {
     result
 }
 
-fn second_stage(first_stage: &AdjacencyList<(), ()>, titles: &Titles) -> AdjacencyList<(), ()> {
+fn second_stage(
+    first_stage: &AdjacencyList<PageInfo, LinkInfo>,
+    titles: &Titles,
+) -> AdjacencyList<PageInfo, LinkInfo> {
     let pages_map = initialize_pages_map(&first_stage.pages);
     let mut result = AdjacencyList::default();
 
