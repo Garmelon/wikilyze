@@ -18,12 +18,14 @@ fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
 
 fn resolve_redirects(data: &AdjacencyList<PageInfo, LinkInfo>, mut page_idx: u32) -> u32 {
     loop {
-        let page = &data.page(page_idx);
-        if page.data.redirect {
-            page_idx = data.link(page.link_idx).to;
-        } else {
-            break page_idx;
+        if data.page(page_idx).data.redirect {
+            if let Some(link_idx) = data.link_redirect(page_idx) {
+                page_idx = data.link(link_idx).to;
+                continue;
+            }
         }
+
+        return page_idx;
     }
 }
 

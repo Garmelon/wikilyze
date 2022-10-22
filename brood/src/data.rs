@@ -215,15 +215,18 @@ impl AdjacencyList<PageInfo, LinkInfo> {
             }
         }
 
-        // Check that all redirect pages have exactly one link
+        // Check that all redirect pages have at most one link
         for page_idx in 0..self.pages.len() as u32 - 1 {
             let page = self.page(page_idx);
             if page.data.redirect {
                 let start_idx = page.link_idx;
                 let end_idx = self.page(page_idx + 1).link_idx;
                 let n_links = end_idx - start_idx;
-                if n_links != 1 {
-                    panic!("Redirect {:?} has {n_links} links", page.data.title);
+                if n_links > 1 {
+                    panic!(
+                        "Redirect {:?} has too many ({n_links}) links",
+                        page.data.title
+                    );
                 }
             }
         }
@@ -243,6 +246,16 @@ impl<P, L> AdjacencyList<P, L> {
         let start_idx = self.page(page_idx).link_idx;
         let end_idx = self.page(page_idx + 1).link_idx;
         start_idx..end_idx
+    }
+
+    pub fn link_redirect(&self, page_idx: u32) -> Option<u32> {
+        let start_idx = self.page(page_idx).link_idx;
+        let end_idx = self.page(page_idx + 1).link_idx;
+        if start_idx == end_idx {
+            None
+        } else {
+            Some(start_idx)
+        }
     }
 
     pub fn link(&self, idx: u32) -> &Link<L> {
