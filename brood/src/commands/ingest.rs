@@ -114,7 +114,14 @@ fn first_stage() -> io::Result<(AdjacencyList<(), ()>, Titles)> {
 fn initialize_pages_map(pages: &[Page<()>]) -> FxHashMap<String, u32> {
     let mut result = FxHashMap::default();
     for (i, p) in pages.iter().enumerate() {
-        result.insert(util::normalize_link(&p.title), i as u32);
+        match result.entry(util::normalize_link(&p.title)) {
+            Entry::Occupied(entry) => {
+                eprintln!("{:?} already exists at index {}", p.title, entry.get());
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(i as u32);
+            }
+        }
     }
     result
 }
