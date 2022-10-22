@@ -127,12 +127,11 @@ fn dijkstra(
         };
     }
     steps.reverse();
-    Some(steps)
-    // if steps.first() == Some(&from_idx) {
-    //     Some(steps)
-    // } else {
-    //     None
-    // }
+    if steps.first() == Some(&from_idx) {
+        Some(steps)
+    } else {
+        None
+    }
 }
 
 pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
