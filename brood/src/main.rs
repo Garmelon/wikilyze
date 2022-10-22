@@ -19,6 +19,9 @@ enum Command {
     Path {
         from: String,
         to: String,
+        /// Flip start and end article.
+        #[clap(short, long)]
+        flip: bool,
     },
     // Print all page titles.
     ListPages,
@@ -36,7 +39,13 @@ fn main() -> io::Result<()> {
     match args.command {
         Command::Ingest => commands::ingest::ingest(&args.datafile),
         Command::Reexport { to } => commands::reexport::reexport(&args.datafile, &to),
-        Command::Path { from, to } => commands::path::path(&args.datafile, &from, &to),
+        Command::Path { from, to, flip } => {
+            if flip {
+                commands::path::path(&args.datafile, &to, &from)
+            } else {
+                commands::path::path(&args.datafile, &from, &to)
+            }
+        }
         Command::ListPages => commands::list_pages::run(&args.datafile),
     }
 }
