@@ -217,7 +217,7 @@ impl AdjacencyList<PageInfo, LinkInfo> {
 }
 
 impl<P, L> AdjacencyList<P, L> {
-    pub fn change_page_data<P2: Clone>(self, page_f: &impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
+    pub fn change_page_data<P2>(self, page_f: &impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
         let pages = self
             .pages
             .into_iter()
@@ -230,7 +230,7 @@ impl<P, L> AdjacencyList<P, L> {
         }
     }
 
-    pub fn change_link_data<L2: Clone>(self, link_f: &impl Fn(L) -> L2) -> AdjacencyList<P, L2> {
+    pub fn change_link_data<L2>(self, link_f: &impl Fn(L) -> L2) -> AdjacencyList<P, L2> {
         let links = self
             .links
             .into_iter()
