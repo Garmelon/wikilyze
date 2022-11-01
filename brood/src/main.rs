@@ -12,9 +12,7 @@ enum Command {
     /// Read sift data on stdin and output brood data.
     Ingest,
     /// Read and reexport brood data.
-    Reexport {
-        to: PathBuf,
-    },
+    Reexport { to: PathBuf },
     /// Find a path from one article to another.
     Path {
         from: String,
@@ -24,11 +22,11 @@ enum Command {
         flip: bool,
     },
     /// Find the longest shortest path starting at an article.
-    LongestShortestPath {
-        from: String,
-    },
-    // Print all page titles.
+    LongestShortestPath { from: String },
+    /// Print all page titles.
     ListPages,
+    /// Construct wikipedia article graph for Leon.
+    LeonWikiGraph { articles: PathBuf, language:String },
 }
 
 #[derive(Debug, Parser)]
@@ -54,5 +52,8 @@ fn main() -> io::Result<()> {
             commands::longest_shortest_path::run(&args.datafile, &from)
         }
         Command::ListPages => commands::list_pages::run(&args.datafile),
+        Command::LeonWikiGraph { articles ,language} => {
+            commands::leon_wiki_graph::run(&args.datafile, &articles,&language)
+        }
     }
 }
