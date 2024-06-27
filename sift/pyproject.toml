@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sift"
-version = "0.1.0"
+version = "0.0.0"
 description = "Sift through wikipedia dumps and extract interesting info"
-dependencies = ["mwxml >= 0.3.3, < 0.4", "wikitextparser >= 0.51.0, < 0.52"]
+dependencies = ["mwxml >= 0.3.3, < 0.4", "wikitextparser >= 0.55.13, < 0.56"]
 
 [project.scripts]
 sift = "sift:main"
