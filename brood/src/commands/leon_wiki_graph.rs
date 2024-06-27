@@ -32,7 +32,7 @@ pub fn run(datafile: &Path, articlesfile: &Path, language: &str) -> io::Result<(
 
     let articlesbuf = BufReader::new(File::open(articlesfile)?);
     let articles: Vec<Article> =
-        simd_json::from_reader(articlesbuf).expect("failed to parse articles file");
+        serde_json::from_reader(articlesbuf).expect("failed to parse articles file");
 
     let titles = articles
         .into_iter()

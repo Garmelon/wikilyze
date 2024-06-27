@@ -67,7 +67,7 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
 
     let stdin = BufReader::new(io::stdin());
     for (i, line) in stdin.lines().enumerate() {
-        let json_page = simd_json::serde::from_slice::<JsonPage>(&mut line?.into_bytes()).unwrap();
+        let json_page = serde_json::from_str::<JsonPage>(&line?).unwrap();
 
         result.pages.push(Page {
             link_idx: result.links.len() as u32,
