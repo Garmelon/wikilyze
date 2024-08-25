@@ -46,7 +46,8 @@ def find_structures(page):
     structures = []
     structures.extend(i.span for i in page.comments)
     structures.extend(i.span for i in page.external_links)
-    structures.extend(i.span for i in page.get_tags())  # Usually <ref>
+    # In disambiguation pages, <onlyinclude> tags wrap all links.
+    structures.extend(i.span for i in page.get_tags() if i.name != "onlyinclude")
     structures.extend(i.span for i in page.tables)
     structures.extend(i.span for i in page.templates)
 
@@ -123,7 +124,7 @@ def find_links(page, structure_delims, paren_delims):
         start, end = link.span
         open_structures += advance_delims(structure_delims, start)
         open_parens += advance_delims(paren_delims, start)
-        in_structure = open_structures > 0
+        in_structure = open_structures > 0 or link.parent() is not None
         in_parens = open_parens > 0
         links.append(format_link(link, in_structure, in_parens))
 
