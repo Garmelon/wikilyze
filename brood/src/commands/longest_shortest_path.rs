@@ -18,7 +18,7 @@ impl DijkstraPageInfo {
     fn from_page_info(info: PageInfo) -> Self {
         Self {
             cost: u32::MAX,
-            prev: PageIdx(u32::MAX),
+            prev: PageIdx::MAX,
             redirect: info.redirect,
         }
     }
@@ -131,7 +131,7 @@ fn find_longest_shortest_path(
     loop {
         steps.push(at);
         at = data.page(at).data.prev;
-        if at == PageIdx(u32::MAX) {
+        if at == PageIdx::MAX {
             break;
         };
     }

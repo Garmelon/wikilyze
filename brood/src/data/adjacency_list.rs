@@ -5,6 +5,10 @@ pub const SENTINEL_PAGE_MARKER: &str = "Q2AKO3OYzyitmCJURghJ";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PageIdx(pub u32);
 
+impl PageIdx {
+    pub const MAX: PageIdx = PageIdx(u32::MAX);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LinkIdx(pub u32);
 
@@ -59,6 +63,10 @@ impl<P, L> AdjacencyList<P, L> {
 
     pub fn page_mut(&mut self, idx: PageIdx) -> &mut Page<P> {
         &mut self.pages[idx.0 as usize]
+    }
+
+    pub fn pages_range(&self) -> impl DoubleEndedIterator<Item = PageIdx> {
+        (0..self.pages.len() as u32 - 1).map(PageIdx)
     }
 
     pub fn link_range(&self, idx: PageIdx) -> impl DoubleEndedIterator<Item = LinkIdx> {
