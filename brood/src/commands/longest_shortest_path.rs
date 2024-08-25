@@ -95,7 +95,7 @@ fn full_dijkstra(
                 page_idx: link.to,
             };
 
-            let mut target_page = data.page_mut(link.to);
+            let target_page = data.page_mut(link.to);
             if next.cost < target_page.data.cost {
                 target_page.data.cost = next.cost;
                 target_page.data.prev_page_idx = page_idx;

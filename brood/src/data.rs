@@ -213,15 +213,7 @@ impl AdjacencyList<PageInfo, LinkInfo> {
         assert!(self.pages.len() <= u32::MAX as usize, "pages len");
         assert!(self.links.len() <= u32::MAX as usize, "links len");
         for page in &self.pages {
-            assert!(page.link_idx <= u32::MAX as u32, "page link_idx");
-            assert!(page.data.id <= u32::MAX as u32, "page id");
-            assert!(page.data.length <= u32::MAX as u32, "page length");
             assert!(page.data.title.len() <= u8::MAX as usize, "page title len");
-        }
-        for link in &self.links {
-            assert!(link.to <= u32::MAX as u32, "link to");
-            assert!(link.data.start <= u32::MAX as u32, "link start");
-            assert!(link.data.len <= u32::MAX as u32, "link end");
         }
 
         // Check that all links contain valid indices

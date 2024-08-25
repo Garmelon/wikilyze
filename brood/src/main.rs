@@ -18,7 +18,7 @@ enum Command {
         from: String,
         to: String,
         /// Flip start and end article.
-        #[clap(short, long)]
+        #[arg(short, long)]
         flip: bool,
     },
     /// Find the longest shortest path starting at an article.
@@ -26,7 +26,7 @@ enum Command {
     /// Print all page titles.
     ListPages,
     /// Construct wikipedia article graph for Leon.
-    LeonWikiGraph { articles: PathBuf, language:String },
+    LeonWikiGraph { articles: PathBuf, language: String },
 }
 
 #[derive(Debug, Parser)]
@@ -52,8 +52,8 @@ fn main() -> io::Result<()> {
             commands::longest_shortest_path::run(&args.datafile, &from)
         }
         Command::ListPages => commands::list_pages::run(&args.datafile),
-        Command::LeonWikiGraph { articles ,language} => {
-            commands::leon_wiki_graph::run(&args.datafile, &articles,&language)
+        Command::LeonWikiGraph { articles, language } => {
+            commands::leon_wiki_graph::run(&args.datafile, &articles, &language)
         }
     }
 }
