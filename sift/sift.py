@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+from multiprocessing import Pool
 
 import mwxml  # https://pythonhosted.org/mwxml/
 import wikitextparser as wtp  # https://github.com/5j9/wikitextparser#readme
@@ -87,8 +88,6 @@ def fix_parens(paren_delims):
         elif open_parens > 0:
             open_parens -= 1
             paren_delims_2.append((i, opening))
-        else:
-            eprint(f"(removed weird closing paren at {i})")
 
     # Then, remove opening parens that would never be closed.
     open_parens = 0
@@ -100,8 +99,6 @@ def fix_parens(paren_delims):
         elif open_parens > 0:
             open_parens -= 1
             paren_delims_3.append((i, opening))
-        else:
-            eprint(f"(removed weird opening paren at {i})")
     paren_delims_3.reverse()
 
     return paren_delims_3
@@ -171,7 +168,44 @@ def process_xmldump_page(page):
     print(json.dumps(info, check_circular=False, separators=(",", ":")))
 
 
-def main():
+# Page info as simple tuples
+def simple_pages(input):
     dump = mwxml.Dump.from_file(sys.stdin)
-    for page in dump.pages:
-        process_xmldump_page(page)
+    for i, page in enumerate(dump.pages):
+        if page.namespace != 0:
+            continue
+
+        if (i + 1) % 1000 == 0:
+            eprint(f"{i+1:8} pages, at pid {page.id:8}")
+
+        [revision] = list(page)  # Every page has exactly one revision
+        yield page.id, page.title, revision.text or "", page.redirect
+
+
+def process_simple_page(info):
+    pid, title, text, redirect = info
+    # eprint(f"{pid:8} - {title!r}")
+
+    parsed = wtp.parse(text)
+    structure_delims = find_structures(parsed)
+    paren_delims = find_parens(parsed, structure_delims)
+    paren_delims_fixed = fix_parens(paren_delims)
+    links = find_links(parsed, structure_delims, paren_delims_fixed)
+
+    info = {
+        "id": pid,
+        "title": title,
+        "length": len(text),
+        "links": links,
+    }
+
+    if redirect:
+        info["redirect"] = redirect
+
+    return json.dumps(info, check_circular=False, separators=(",", ":"))
+
+
+def main():
+    with Pool() as p:
+        for dump in p.imap(process_simple_page, simple_pages(sys.stdin)):
+            print(dump)
