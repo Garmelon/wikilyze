@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 
 use super::{
-    adjacency_list::{AdjacencyList, Link, LinkIdx, Page, PageIdx},
+    adjacency_list::{AdjacencyList, Link, Page},
     info::{LinkInfo, PageInfo},
 };
 
@@ -50,7 +50,7 @@ fn read_str<R: Read>(from: &mut R) -> io::Result<String> {
 }
 
 fn write_page<W: Write>(page: &Page<PageInfo>, to: &mut W) -> io::Result<()> {
-    write_u32(page.start.0, to)?;
+    write_u32(page.start, to)?;
     write_u32(page.data.id, to)?;
     write_u32(page.data.length, to)?;
     write_u8(if page.data.redirect { 1 } else { 0 }, to)?;
@@ -60,14 +60,14 @@ fn write_page<W: Write>(page: &Page<PageInfo>, to: &mut W) -> io::Result<()> {
 }
 
 pub fn read_page<R: Read>(from: &mut R) -> io::Result<Page<PageInfo>> {
-    let start = LinkIdx(read_u32(from)?);
+    let start_link_idx = read_u32(from)?;
     let id = read_u32(from)?;
     let length = read_u32(from)?;
     let redirect = read_u8(from)? != 0;
     let title = read_str(from)?;
 
     Ok(Page {
-        start,
+        start: start_link_idx,
         data: PageInfo {
             id,
             length,
@@ -78,7 +78,7 @@ pub fn read_page<R: Read>(from: &mut R) -> io::Result<Page<PageInfo>> {
 }
 
 fn write_link<W: Write>(link: &Link<LinkInfo>, to: &mut W) -> io::Result<()> {
-    write_u32(link.to.0, to)?;
+    write_u32(link.to, to)?;
     write_u32(link.data.start, to)?;
     write_u32(link.data.len, to)?;
     write_u8(link.data.flags, to)?;
@@ -87,13 +87,13 @@ fn write_link<W: Write>(link: &Link<LinkInfo>, to: &mut W) -> io::Result<()> {
 }
 
 fn read_link<R: Read>(from: &mut R) -> io::Result<Link<LinkInfo>> {
-    let to = PageIdx(read_u32(from)?);
+    let to_page_idx = read_u32(from)?;
     let start = read_u32(from)?;
     let len = read_u32(from)?;
     let flags = read_u8(from)?;
 
     Ok(Link {
-        to,
+        to: to_page_idx,
         data: LinkInfo { start, len, flags },
     })
 }

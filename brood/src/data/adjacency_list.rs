@@ -1,20 +1,11 @@
+use std::ops::Range;
+
 use super::info::{LinkInfo, PageInfo};
-
-pub const SENTINEL_PAGE_MARKER: &str = "Q2AKO3OYzyitmCJURghJ";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PageIdx(pub u32);
-
-impl PageIdx {
-    pub const MAX: PageIdx = PageIdx(u32::MAX);
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LinkIdx(pub u32);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Page<P> {
-    pub start: LinkIdx,
+    /// Index of the first link belonging to this page.
+    pub start: u32,
     pub data: P,
 }
 
@@ -29,7 +20,8 @@ impl<P> Page<P> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Link<L> {
-    pub to: PageIdx,
+    /// Index of the page this link points to.
+    pub to: u32,
     pub data: L,
 }
 
@@ -57,40 +49,57 @@ impl<P, L> Default for AdjacencyList<P, L> {
 }
 
 impl<P, L> AdjacencyList<P, L> {
-    pub fn page(&self, idx: PageIdx) -> &Page<P> {
-        &self.pages[idx.0 as usize]
+    pub fn push_page(&mut self, data: P) {
+        self.pages.push(Page {
+            start: self.links.len() as u32,
+            data,
+        });
     }
 
-    pub fn page_mut(&mut self, idx: PageIdx) -> &mut Page<P> {
-        &mut self.pages[idx.0 as usize]
+    pub fn push_link(&mut self, to: u32, data: L) {
+        self.links.push(Link { to, data })
     }
 
-    pub fn pages_range(&self) -> impl DoubleEndedIterator<Item = PageIdx> {
-        (0..self.pages.len() as u32 - 1).map(PageIdx)
+    pub fn page(&self, page_idx: u32) -> &Page<P> {
+        &self.pages[page_idx as usize]
     }
 
-    pub fn link_range(&self, idx: PageIdx) -> impl DoubleEndedIterator<Item = LinkIdx> {
-        let start_idx = self.page(idx).start;
-        let end_idx = self.page(PageIdx(idx.0 + 1)).start;
-        (start_idx.0..end_idx.0).map(LinkIdx)
+    pub fn page_mut(&mut self, page_idx: u32) -> &mut Page<P> {
+        &mut self.pages[page_idx as usize]
     }
 
-    pub fn link_redirect(&self, idx: PageIdx) -> Option<LinkIdx> {
-        let start_idx = self.page(idx).start;
-        let end_idx = self.page(PageIdx(idx.0 + 1)).start;
-        if start_idx == end_idx {
+    pub fn pages(&self) -> impl Iterator<Item = (u32, &Page<P>)> {
+        self.pages.iter().enumerate().map(|(i, p)| (i as u32, p))
+    }
+
+    pub fn link(&self, link_idx: u32) -> &Link<L> {
+        &self.links[link_idx as usize]
+    }
+
+    pub fn link_mut(&mut self, link_idx: u32) -> &mut Link<L> {
+        &mut self.links[link_idx as usize]
+    }
+
+    pub fn link_range(&self, page_idx: u32) -> Range<u32> {
+        let start_idx = self.pages[page_idx as usize].start;
+        let end_idx = match self.pages.get(page_idx as usize + 1) {
+            Some(page) => page.start,
+            None => self.links.len() as u32,
+        };
+        start_idx..end_idx
+    }
+
+    pub fn link_redirect(&self, page_idx: u32) -> Option<u32> {
+        let range = self.link_range(page_idx);
+        if range.is_empty() {
             None
         } else {
-            Some(start_idx)
+            Some(range.start)
         }
     }
 
-    pub fn link(&self, idx: LinkIdx) -> &Link<L> {
-        &self.links[idx.0 as usize]
-    }
-
-    pub fn link_mut(&mut self, idx: LinkIdx) -> &mut Link<L> {
-        &mut self.links[idx.0 as usize]
+    pub fn links(&self, page_idx: u32) -> impl Iterator<Item = (u32, &Link<L>)> {
+        self.link_range(page_idx).map(|i| (i, self.link(i)))
     }
 
     pub fn change_page_data<P2>(self, page_f: impl Fn(P) -> P2 + Copy) -> AdjacencyList<P2, L> {
@@ -122,14 +131,6 @@ impl<P, L> AdjacencyList<P, L> {
 
 impl AdjacencyList<PageInfo, LinkInfo> {
     pub fn check_consistency(&self) {
-        // Check that we have a sentinel page
-        let sentinel = self.pages.last().expect("no sentinel page");
-        assert!(sentinel.data.id == u32::MAX, "unmarked sentinel page");
-        assert!(
-            sentinel.data.title.contains(SENTINEL_PAGE_MARKER),
-            "unmarked sentinel page"
-        );
-
         // Check that all types are large enough
         assert!(self.pages.len() < u32::MAX as usize, "too many pages");
         assert!(self.links.len() < u32::MAX as usize, "too many links");
@@ -142,18 +143,17 @@ impl AdjacencyList<PageInfo, LinkInfo> {
 
         // Check that all links contain valid indices. Links must not link to
         // the sentinel page.
-        let range = 0..self.pages.len() as u32 - 1;
+        let range = 0..self.pages.len() as u32;
         for link in &self.links {
-            assert!(range.contains(&link.to.0), "invalid link");
+            assert!(range.contains(&link.to), "invalid link");
         }
 
         // Check that all redirect pages have at most one link
-        for page_idx in (0..self.pages.len() as u32 - 1).map(PageIdx) {
-            let page = self.page(page_idx);
+        for (page_idx, page) in self.pages.iter().enumerate() {
             if page.data.redirect {
-                let mut range = self.link_range(page_idx);
-                range.next(); // 0 or 1 links allowed
-                assert!(range.next().is_none(), "too many redirect links");
+                let range = self.link_range(page_idx as u32);
+                let amount = range.end - range.start;
+                assert!(amount <= 1, "too many redirect links");
             }
         }
     }

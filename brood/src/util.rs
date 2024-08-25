@@ -1,5 +1,5 @@
 use crate::data::{
-    adjacency_list::{AdjacencyList, Page, PageIdx},
+    adjacency_list::{AdjacencyList, Page},
     info::{LinkInfo, PageInfo},
 };
 
@@ -15,21 +15,17 @@ pub fn normalize_link(link: &str) -> String {
         .collect::<String>()
 }
 
-pub fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> PageIdx {
+pub fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
     let title = normalize_link(title);
-    let idx = pages
+    pages
         .iter()
         .enumerate()
         .find(|(_, p)| normalize_link(&p.data.title) == title)
         .map(|(i, _)| i)
-        .expect("invalid title") as u32;
-    PageIdx(idx)
+        .expect("invalid title") as u32
 }
 
-pub fn resolve_redirects(
-    data: &AdjacencyList<PageInfo, LinkInfo>,
-    mut page_idx: PageIdx,
-) -> PageIdx {
+pub fn resolve_redirects(data: &AdjacencyList<PageInfo, LinkInfo>, mut page_idx: u32) -> u32 {
     loop {
         if data.page(page_idx).data.redirect {
             if let Some(link_idx) = data.link_redirect(page_idx) {
