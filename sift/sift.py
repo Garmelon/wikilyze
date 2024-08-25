@@ -39,34 +39,34 @@ def advance_delims(delims, to):
     return delta
 
 
-def find_spans(page):
-    # Within any of these spans, parentheses are ignored.
-    spans = []
-    spans.extend(i.span for i in page.comments)
-    spans.extend(i.span for i in page.external_links)
-    spans.extend(i.span for i in page.get_tags())  # Usually <ref>
-    spans.extend(i.span for i in page.tables)
-    spans.extend(i.span for i in page.templates)
-    spans.extend(i.span for i in page.wikilinks)
+def find_structures(page):
+    # These elements count as "structures". Within them, parentheses are ignored
+    # and links count as "in a structure".
+    structures = []
+    structures.extend(i.span for i in page.comments)
+    structures.extend(i.span for i in page.external_links)
+    structures.extend(i.span for i in page.get_tags())  # Usually <ref>
+    structures.extend(i.span for i in page.tables)
+    structures.extend(i.span for i in page.templates)
 
-    span_delims = []
-    span_delims.extend((s, True) for s, _ in spans)
-    span_delims.extend((e, False) for _, e in spans)
-    span_delims.sort()
-    return span_delims
+    structure_delims = []
+    structure_delims.extend((s, True) for s, _ in structures)
+    structure_delims.extend((e, False) for _, e in structures)
+    structure_delims.sort()
+    return structure_delims
 
 
-def find_parens(page, span_delims):
-    span_delims = list(reversed(sorted(span_delims)))
+def find_parens(page, structure_delims):
+    structure_delims = list(reversed(sorted(structure_delims)))
 
-    open_spans = 0
+    open_structures = 0
     paren_delims = []
 
     for m in re.finditer(r"\(|\)", page.string):
         start, end = m.span()
 
-        open_spans += advance_delims(span_delims, start)
-        if open_spans != 0:
+        open_structures += advance_delims(structure_delims, start)
+        if open_structures != 0:
             continue
 
         opening = m.group(0) == "("
@@ -107,25 +107,28 @@ def fix_parens(paren_delims):
     return paren_delims_3
 
 
-def format_link(link, in_parens, in_structure):
+def format_link(link, in_structure, in_parens):
     title = link.title.strip()
     start, end = link.span
     flags = in_structure << 1 | in_parens
     return (title, start, end - start, flags)
 
 
-def find_links(page, paren_delims):
+def find_links(page, structure_delims, paren_delims):
+    structure_delims = list(reversed(sorted(structure_delims)))
     paren_delims = list(reversed(sorted(paren_delims)))
 
+    open_structures = 0
     open_parens = 0
     links = []
 
     for link in page.wikilinks:
         start, end = link.span
+        open_structures += advance_delims(structure_delims, start)
         open_parens += advance_delims(paren_delims, start)
-        in_parens = open_parens != 0
-        in_structure = link.parent() is not None
-        links.append(format_link(link, in_parens, in_structure))
+        in_structure = open_structures > 0
+        in_parens = open_parens > 0
+        links.append(format_link(link, in_structure, in_parens))
 
     return links
 
@@ -150,10 +153,10 @@ def process_xmldump_page(page):
     [revision] = list(page)  # Every page has exactly one revision
     text = revision.text or ""
     parsed = wtp.parse(text)
-    span_delims = find_spans(parsed)
-    paren_delims = find_parens(parsed, span_delims)
+    structure_delims = find_structures(parsed)
+    paren_delims = find_parens(parsed, structure_delims)
     paren_delims_fixed = fix_parens(paren_delims)
-    links = find_links(parsed, paren_delims_fixed)
+    links = find_links(parsed, structure_delims, paren_delims_fixed)
 
     info = {
         "id": page.id,
