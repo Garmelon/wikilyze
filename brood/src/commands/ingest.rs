@@ -2,11 +2,16 @@ use std::collections::hash_map::Entry;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter};
 use std::path::Path;
+use std::u32;
 
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::data::{AdjacencyList, Link, LinkInfo, Page, PageInfo};
+use crate::data::adjacency_list::{
+    AdjacencyList, Link, LinkIdx, Page, PageIdx, SENTINEL_PAGE_MARKER,
+};
+use crate::data::info::{LinkInfo, PageInfo};
+use crate::data::store;
 use crate::util;
 
 #[derive(Deserialize)]
@@ -70,7 +75,7 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
         let json_page = serde_json::from_str::<JsonPage>(&line?).unwrap();
 
         result.pages.push(Page {
-            link_idx: result.links.len() as u32,
+            start: LinkIdx(result.links.len() as u32),
             data: PageInfo {
                 id: json_page.id,
                 length: json_page.length,
@@ -82,14 +87,14 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
         if let Some(to) = json_page.redirect {
             let to = titles.insert(util::normalize_link(&to));
             result.links.push(Link {
-                to,
+                to: PageIdx(to),
                 data: LinkInfo::default(),
             });
         } else {
             for (to, start, len, flags) in json_page.links {
                 let to = titles.insert(util::normalize_link(&to));
                 result.links.push(Link {
-                    to,
+                    to: PageIdx(to),
                     data: LinkInfo { start, len, flags },
                 });
             }
@@ -106,12 +111,12 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
     eprintln!("Title map entries: {}", titles.map.len());
 
     result.pages.push(Page {
-        link_idx: result.links.len() as u32,
+        start: LinkIdx(result.links.len() as u32),
         data: PageInfo {
-            id: 0,
+            id: u32::MAX,
             length: 0,
             redirect: false,
-            title: "Sentinel page at the end of all pages, Q2AKO3OYzyitmCJURghJ".to_string(),
+            title: SENTINEL_PAGE_MARKER.to_string(),
         },
     });
 
@@ -148,18 +153,18 @@ fn second_stage(
 
     for page_idx in 0..first_stage.pages.len() - 1 {
         let mut page = first_stage.pages[page_idx].clone();
-        let start_link_idx = page.link_idx;
-        let end_link_idx = first_stage.pages[page_idx + 1].link_idx;
+        let start_link_idx = page.start;
+        let end_link_idx = first_stage.pages[page_idx + 1].start;
 
-        page.link_idx = result.links.len() as u32;
+        page.start.0 = result.links.len() as u32;
         result.pages.push(page);
 
-        for link_idx in start_link_idx..end_link_idx {
+        for link_idx in start_link_idx.0..end_link_idx.0 {
             let mut link = first_stage.links[link_idx as usize];
-            let title = util::normalize_link(titles.get(link.to));
+            let title = util::normalize_link(titles.get(link.to.0));
             if let Some(to) = pages_map.get(&title) {
                 // The link points to an existing article, we should keep it
-                link.to = *to;
+                link.to.0 = *to;
                 result.links.push(link);
             }
         }
@@ -174,7 +179,7 @@ fn second_stage(
     eprintln!("Page map entries: {}", pages_map.len());
 
     let mut sentinel = first_stage.pages.last().unwrap().clone();
-    sentinel.link_idx = result.links.len() as u32;
+    sentinel.start.0 = result.links.len() as u32;
     result.pages.push(sentinel);
 
     result
@@ -192,7 +197,7 @@ pub fn ingest(datafile: &Path) -> io::Result<()> {
 
     eprintln!(">> Export");
     let mut datafile = BufWriter::new(File::create(datafile)?);
-    data.write(&mut datafile)?;
+    store::write_adjacency_list(&data, &mut datafile)?;
 
     Ok(())
 }

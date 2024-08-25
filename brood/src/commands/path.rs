@@ -3,12 +3,14 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 
-use crate::data::{AdjacencyList, LinkInfo, PageInfo};
+use crate::data::adjacency_list::{AdjacencyList, PageIdx};
+use crate::data::info::{LinkInfo, PageInfo};
+use crate::data::store;
 use crate::util;
 
 struct DijkstraPageInfo {
     cost: u32,
-    prev_page_idx: u32,
+    prev: PageIdx,
     redirect: bool,
 }
 
@@ -16,7 +18,7 @@ impl DijkstraPageInfo {
     fn from_page_info(info: PageInfo) -> Self {
         Self {
             cost: u32::MAX,
-            prev_page_idx: u32::MAX,
+            prev: PageIdx(u32::MAX),
             redirect: info.redirect,
         }
     }
@@ -40,12 +42,12 @@ impl DijkstraLinkInfo {
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Entry {
     cost: u32,
-    page_idx: u32,
+    idx: PageIdx,
 }
 
 impl Entry {
-    pub fn new(cost: u32, page_idx: u32) -> Self {
-        Self { cost, page_idx }
+    pub fn new(cost: u32, idx: PageIdx) -> Self {
+        Self { cost, idx }
     }
 }
 
@@ -55,7 +57,7 @@ impl Ord for Entry {
         other
             .cost
             .cmp(&self.cost)
-            .then_with(|| self.page_idx.cmp(&other.page_idx))
+            .then_with(|| self.idx.cmp(&other.idx))
     }
 }
 
@@ -68,20 +70,24 @@ impl PartialOrd for Entry {
 /// Closely matches the dijkstra example in [std::collections::binary_heap].
 fn dijkstra(
     data: AdjacencyList<PageInfo, LinkInfo>,
-    from_idx: u32,
-    to_idx: u32,
-) -> Option<Vec<u32>> {
+    from: PageIdx,
+    to: PageIdx,
+) -> Option<Vec<PageIdx>> {
     println!("> Prepare state");
     let mut data = data
         .change_page_data(DijkstraPageInfo::from_page_info)
         .change_link_data(DijkstraLinkInfo::from_link_info);
     let mut queue = BinaryHeap::new();
-    data.page_mut(from_idx).data.cost = 0;
-    queue.push(Entry::new(0, from_idx));
+    data.page_mut(from).data.cost = 0;
+    queue.push(Entry::new(0, from));
 
     println!("> Run dijkstra");
-    while let Some(Entry { cost, page_idx }) = queue.pop() {
-        if page_idx == to_idx {
+    while let Some(Entry {
+        cost,
+        idx: page_idx,
+    }) = queue.pop()
+    {
+        if page_idx == to {
             // We've found the shortest path to our target
             break;
         }
@@ -98,13 +104,13 @@ fn dijkstra(
 
             let next = Entry {
                 cost: cost + if redirect { 0 } else { link.data.cost },
-                page_idx: link.to,
+                idx: link.to,
             };
 
             let target_page = data.page_mut(link.to);
             if next.cost < target_page.data.cost {
                 target_page.data.cost = next.cost;
-                target_page.data.prev_page_idx = page_idx;
+                target_page.data.prev = page_idx;
                 queue.push(next);
             }
         }
@@ -112,16 +118,16 @@ fn dijkstra(
 
     println!("> Collect results");
     let mut steps = vec![];
-    let mut at_idx = to_idx;
+    let mut at = to;
     loop {
-        steps.push(at_idx);
-        at_idx = data.page(at_idx).data.prev_page_idx;
-        if at_idx == u32::MAX {
+        steps.push(at);
+        at = data.page(at).data.prev;
+        if at == PageIdx(u32::MAX) {
             break;
         };
     }
     steps.reverse();
-    if steps.first() == Some(&from_idx) {
+    if steps.first() == Some(&from) {
         Some(steps)
     } else {
         None
@@ -131,7 +137,7 @@ fn dijkstra(
 pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
     println!(">> Import");
     let mut databuf = BufReader::new(File::open(datafile)?);
-    let data = AdjacencyList::read(&mut databuf)?;
+    let data = store::read_adjacency_list(&mut databuf)?;
     let pages = data.pages.clone();
 
     println!(">> Locate from and to");
@@ -146,7 +152,7 @@ pub fn path(datafile: &Path, from: &str, to: &str) -> io::Result<()> {
     if let Some(path) = path {
         println!("Path found:");
         for page_idx in path {
-            let page = &pages[page_idx as usize];
+            let page = &pages[page_idx.0 as usize];
             if page.data.redirect {
                 println!(" v {:?}", page.data.title);
             } else {

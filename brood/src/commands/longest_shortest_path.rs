@@ -3,12 +3,14 @@ use std::fs::File;
 use std::io::{self, BufReader};
 use std::path::Path;
 
-use crate::data::{AdjacencyList, LinkInfo, PageInfo};
+use crate::data::adjacency_list::{AdjacencyList, PageIdx};
+use crate::data::info::{LinkInfo, PageInfo};
+use crate::data::store;
 use crate::util;
 
 struct DijkstraPageInfo {
     cost: u32,
-    prev_page_idx: u32,
+    prev: PageIdx,
     redirect: bool,
 }
 
@@ -16,7 +18,7 @@ impl DijkstraPageInfo {
     fn from_page_info(info: PageInfo) -> Self {
         Self {
             cost: u32::MAX,
-            prev_page_idx: u32::MAX,
+            prev: PageIdx(u32::MAX),
             redirect: info.redirect,
         }
     }
@@ -40,12 +42,12 @@ impl DijkstraLinkInfo {
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Entry {
     cost: u32,
-    page_idx: u32,
+    idx: PageIdx,
 }
 
 impl Entry {
-    pub fn new(cost: u32, page_idx: u32) -> Self {
-        Self { cost, page_idx }
+    pub fn new(cost: u32, idx: PageIdx) -> Self {
+        Self { cost, idx }
     }
 }
 
@@ -55,7 +57,7 @@ impl Ord for Entry {
         other
             .cost
             .cmp(&self.cost)
-            .then_with(|| self.page_idx.cmp(&other.page_idx))
+            .then_with(|| self.idx.cmp(&other.idx))
     }
 }
 
@@ -68,7 +70,7 @@ impl PartialOrd for Entry {
 /// Closely matches the dijkstra example in [std::collections::binary_heap].
 fn full_dijkstra(
     data: AdjacencyList<PageInfo, LinkInfo>,
-    from_idx: u32,
+    from_idx: PageIdx,
 ) -> AdjacencyList<DijkstraPageInfo, DijkstraLinkInfo> {
     println!("> Prepare state");
     let mut data = data
@@ -79,7 +81,11 @@ fn full_dijkstra(
     queue.push(Entry::new(0, from_idx));
 
     println!("> Run dijkstra");
-    while let Some(Entry { cost, page_idx }) = queue.pop() {
+    while let Some(Entry {
+        cost,
+        idx: page_idx,
+    }) = queue.pop()
+    {
         let page = data.page(page_idx);
         if cost > page.data.cost {
             // This queue entry is outdated
@@ -92,13 +98,13 @@ fn full_dijkstra(
 
             let next = Entry {
                 cost: cost + if redirect { 0 } else { link.data.cost },
-                page_idx: link.to,
+                idx: link.to,
             };
 
             let target_page = data.page_mut(link.to);
             if next.cost < target_page.data.cost {
                 target_page.data.cost = next.cost;
-                target_page.data.prev_page_idx = page_idx;
+                target_page.data.prev = page_idx;
                 queue.push(next);
             }
         }
@@ -109,27 +115,28 @@ fn full_dijkstra(
 
 fn find_longest_shortest_path(
     data: AdjacencyList<DijkstraPageInfo, DijkstraLinkInfo>,
-    from_idx: u32,
-) -> Option<Vec<u32>> {
-    let to_idx = data
-        .pages
-        .iter()
-        .enumerate()
-        .filter(|(_, p)| p.data.cost != u32::MAX)
-        .max_by_key(|(_, p)| p.data.cost)?
-        .0 as u32;
+    from: PageIdx,
+) -> Option<Vec<PageIdx>> {
+    let to = PageIdx(
+        data.pages
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.data.cost != u32::MAX)
+            .max_by_key(|(_, p)| p.data.cost)?
+            .0 as u32,
+    );
 
     let mut steps = vec![];
-    let mut at_idx = to_idx;
+    let mut at = to;
     loop {
-        steps.push(at_idx);
-        at_idx = data.page(at_idx).data.prev_page_idx;
-        if at_idx == u32::MAX {
+        steps.push(at);
+        at = data.page(at).data.prev;
+        if at == PageIdx(u32::MAX) {
             break;
         };
     }
     steps.reverse();
-    if steps.first() == Some(&from_idx) {
+    if steps.first() == Some(&from) {
         Some(steps)
     } else {
         None
@@ -139,7 +146,7 @@ fn find_longest_shortest_path(
 pub fn run(datafile: &Path, from: &str) -> io::Result<()> {
     println!(">> Import");
     let mut databuf = BufReader::new(File::open(datafile)?);
-    let data = AdjacencyList::read(&mut databuf)?;
+    let data = store::read_adjacency_list(&mut databuf)?;
     let pages = data.pages.clone();
 
     println!(">> Locate from and to");
@@ -155,7 +162,7 @@ pub fn run(datafile: &Path, from: &str) -> io::Result<()> {
     if let Some(path) = path {
         println!("Path found:");
         for page_idx in path {
-            let page = &pages[page_idx as usize];
+            let page = &pages[page_idx.0 as usize];
             if page.data.redirect {
                 println!(" v {:?}", page.data.title);
             } else {
