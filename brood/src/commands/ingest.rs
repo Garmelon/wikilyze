@@ -14,7 +14,7 @@ struct JsonPage {
     id: u32,
     title: String,
     length: u32,
-    links: Vec<(String, u32, u32)>,
+    links: Vec<(String, u32, u32, u8)>,
     redirect: Option<String>,
 }
 
@@ -83,14 +83,14 @@ fn first_stage() -> io::Result<(AdjacencyList<PageInfo, LinkInfo>, Titles)> {
             let to = titles.insert(util::normalize_link(&to));
             result.links.push(Link {
                 to,
-                data: LinkInfo { start: 0, end: 0 },
+                data: LinkInfo::default(),
             });
         } else {
-            for (to, start, end) in json_page.links {
+            for (to, start, len, flags) in json_page.links {
                 let to = titles.insert(util::normalize_link(&to));
                 result.links.push(Link {
                     to,
-                    data: LinkInfo { start, end },
+                    data: LinkInfo { start, len, flags },
                 });
             }
         }

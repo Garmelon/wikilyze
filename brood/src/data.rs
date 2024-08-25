@@ -102,10 +102,25 @@ impl<P> Page<P> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct LinkInfo {
     pub start: u32,
-    pub end: u32,
+    pub len: u32,
+    pub flags: u8,
+}
+
+impl LinkInfo {
+    pub fn end(self) -> u32 {
+        self.start + self.len
+    }
+
+    pub fn in_parens(self) -> bool {
+        self.flags & 0b1 != 0
+    }
+
+    pub fn in_structure(self) -> bool {
+        self.flags & 0b10 != 0
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -118,7 +133,8 @@ impl Link<LinkInfo> {
     pub fn write<W: Write>(&self, to: &mut W) -> io::Result<()> {
         ioutil::write_u32(self.to, to)?;
         ioutil::write_u32(self.data.start, to)?;
-        ioutil::write_u32(self.data.end, to)?;
+        ioutil::write_u32(self.data.len, to)?;
+        ioutil::write_u8(self.data.flags, to)?;
 
         Ok(())
     }
@@ -126,11 +142,12 @@ impl Link<LinkInfo> {
     pub fn read<R: Read>(from: &mut R) -> io::Result<Self> {
         let to = ioutil::read_u32(from)?;
         let start = ioutil::read_u32(from)?;
-        let end = ioutil::read_u32(from)?;
+        let len = ioutil::read_u32(from)?;
+        let flags = ioutil::read_u8(from)?;
 
         Ok(Self {
             to,
-            data: LinkInfo { start, end },
+            data: LinkInfo { start, len, flags },
         })
     }
 }
@@ -204,7 +221,7 @@ impl AdjacencyList<PageInfo, LinkInfo> {
         for link in &self.links {
             assert!(link.to <= u32::MAX as u32, "link to");
             assert!(link.data.start <= u32::MAX as u32, "link start");
-            assert!(link.data.end <= u32::MAX as u32, "link end");
+            assert!(link.data.len <= u32::MAX as u32, "link end");
         }
 
         // Check that all links contain valid indices
