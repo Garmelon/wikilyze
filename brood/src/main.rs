@@ -12,7 +12,13 @@ enum Command {
     /// Read sift data on stdin and output brood data.
     Ingest,
     /// Read and reexport brood data.
-    Reexport { to: PathBuf },
+    Reexport {
+        to: PathBuf,
+        #[arg(long, short = 'P')]
+        in_parens: Option<bool>,
+        #[arg(long, short = 'S')]
+        in_structure: Option<bool>,
+    },
     /// Find a path from one article to another.
     Path {
         from: String,
@@ -38,7 +44,11 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Ingest => commands::ingest::ingest(&args.datafile),
-        Command::Reexport { to } => commands::reexport::reexport(&args.datafile, &to),
+        Command::Reexport {
+            to,
+            in_parens,
+            in_structure,
+        } => commands::reexport::reexport(&args.datafile, &to, in_parens, in_structure),
         Command::Path { from, to, flip } => {
             if flip {
                 commands::path::path(&args.datafile, &to, &from)
