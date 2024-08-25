@@ -29,6 +29,8 @@ enum Command {
     },
     /// Find the longest shortest path starting at an article.
     LongestShortestPath { from: String },
+    /// Analyze articles using "Philosophy Game" rules.
+    PhilosophyGame,
     /// Print all page titles.
     ListPages,
 }
@@ -59,6 +61,7 @@ fn main() -> io::Result<()> {
         Command::LongestShortestPath { from } => {
             commands::longest_shortest_path::run(&args.datafile, &from)
         }
+        Command::PhilosophyGame => commands::philosophy_game::run(&args.datafile),
         Command::ListPages => commands::list_pages::run(&args.datafile),
     }
 }
