@@ -7,6 +7,13 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+#[derive(Debug, PartialEq, Eq, Parser)]
+pub enum PhilosophyGameCmd {
+    First,
+    Canonical,
+    Cluster,
+}
+
 #[derive(Debug, Parser)]
 enum Command {
     /// Read sift data on stdin and output brood data.
@@ -30,7 +37,10 @@ enum Command {
     /// Find the longest shortest path starting at an article.
     LongestShortestPath { from: String },
     /// Analyze articles using "Philosophy Game" rules.
-    PhilosophyGame,
+    PhilosophyGame {
+        #[command(subcommand)]
+        subcmd: PhilosophyGameCmd,
+    },
     /// Print all page titles.
     ListPages,
 }
@@ -61,7 +71,9 @@ fn main() -> io::Result<()> {
         Command::LongestShortestPath { from } => {
             commands::longest_shortest_path::run(&args.datafile, &from)
         }
-        Command::PhilosophyGame => commands::philosophy_game::run(&args.datafile),
+        Command::PhilosophyGame { subcmd } => {
+            commands::philosophy_game::run(&args.datafile, subcmd)
+        }
         Command::ListPages => commands::list_pages::run(&args.datafile),
     }
 }

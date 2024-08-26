@@ -1,14 +1,17 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     fs::File,
-    io::{self, BufReader},
+    io::{self, BufReader, BufWriter},
     path::Path,
 };
 
-use crate::data::{
-    adjacency_list::AdjacencyList,
-    info::{LinkInfo, PageInfo},
-    store,
+use crate::{
+    data::{
+        adjacency_list::AdjacencyList,
+        info::{LinkInfo, PageInfo},
+        store,
+    },
+    PhilosophyGameCmd,
 };
 
 struct PageMap(Vec<u32>);
@@ -37,23 +40,17 @@ fn first_viable_link(data: &AdjacencyList<PageInfo, LinkInfo>, page_idx: u32) ->
     None
 }
 
-pub fn run(datafile: &Path) -> io::Result<()> {
-    println!(">> Import");
-    let mut databuf = BufReader::new(File::open(datafile)?);
-    let data = store::read_adjacency_list(&mut databuf)?;
-
-    // Compute forward and backward edges
-    let mut forward = PageMap::new(data.pages.len());
+fn find_forward_edges(data: &AdjacencyList<PageInfo, LinkInfo>) -> PageMap {
+    let mut result = PageMap::new(data.pages.len());
     for (page_idx, _) in data.pages() {
-        if let Some(first_link) = first_viable_link(&data, page_idx) {
-            forward.set(page_idx, first_link);
+        if let Some(first_link) = first_viable_link(data, page_idx) {
+            result.set(page_idx, first_link);
         }
     }
+    result
+}
 
-    // Determine cluster for each page, represented via canonical page. The
-    // canonical page of a cluster is either a dead-end or the loop member with
-    // the smallest index.
-    println!(">> Cluster");
+fn find_clusters(data: &AdjacencyList<PageInfo, LinkInfo>, forward: &PageMap) -> PageMap {
     let mut cluster = PageMap::new(data.pages.len());
     for (page_idx, _) in data.pages() {
         let mut current = page_idx;
@@ -90,17 +87,92 @@ pub fn run(datafile: &Path) -> io::Result<()> {
         }
     }
 
+    cluster
+}
+
+fn print_forward_edges_as_json(
+    data: &AdjacencyList<PageInfo, LinkInfo>,
+    forward: &PageMap,
+) -> io::Result<()> {
+    let map = forward
+        .0
+        .iter()
+        .enumerate()
+        .map(|(page, first_link)| {
+            let page_title = &data.page(page as u32).data.title;
+            let first_link_title = if *first_link == u32::MAX {
+                None
+            } else {
+                Some(&data.page(*first_link).data.title)
+            };
+            (page_title, first_link_title)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let writer = BufWriter::new(io::stdout());
+    serde_json::to_writer_pretty(writer, &map)?;
+    Ok(())
+}
+
+fn print_canonical_pages_as_json(
+    data: &AdjacencyList<PageInfo, LinkInfo>,
+    cluster: &PageMap,
+) -> io::Result<()> {
+    let map = cluster
+        .0
+        .iter()
+        .enumerate()
+        .map(|(page, canonical)| {
+            (
+                &data.page(page as u32).data.title,
+                &data.page(*canonical).data.title,
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    let writer = BufWriter::new(io::stdout());
+    serde_json::to_writer_pretty(writer, &map)?;
+    Ok(())
+}
+
+pub fn run(datafile: &Path, subcmd: PhilosophyGameCmd) -> io::Result<()> {
+    eprintln!(">> Import");
+    let mut databuf = BufReader::new(File::open(datafile)?);
+    let data = store::read_adjacency_list(&mut databuf)?;
+
+    eprintln!(">> Forward");
+    let forward = find_forward_edges(&data);
+
+    if subcmd == PhilosophyGameCmd::First {
+        eprintln!(">> First links");
+        print_forward_edges_as_json(&data, &forward)?;
+        return Ok(());
+    }
+
+    // Determine cluster for each page, represented via canonical page. The
+    // canonical page of a cluster is either a dead-end or the loop member with
+    // the smallest index.
+    eprintln!(">> Find clusters");
+    let cluster = find_clusters(&data, &forward);
+
+    if subcmd == PhilosophyGameCmd::Canonical {
+        print_canonical_pages_as_json(&data, &cluster)?;
+        return Ok(());
+    }
+
     // Measure cluster size
+    eprintln!(">> Measure clusters");
     let mut cluster_size = HashMap::<u32, u32>::new();
     for (i, canonical) in cluster.0.iter().enumerate() {
         assert!(*canonical != u32::MAX, "{}", data.page(i as u32).data.title);
         *cluster_size.entry(*canonical).or_default() += 1;
     }
-
     let mut cluster_by_size = cluster_size.into_iter().collect::<Vec<_>>();
     cluster_by_size.sort_by_key(|(c, s)| (*s, *c));
+    cluster_by_size.reverse();
 
     // Print clusters
+    assert!(subcmd == PhilosophyGameCmd::Cluster);
     for (canonical, size) in cluster_by_size {
         if forward.get(canonical) == u32::MAX {
             let title = &data.page(canonical).data.title;
@@ -111,8 +183,13 @@ pub fn run(datafile: &Path) -> io::Result<()> {
         println!("Cluster (loop, {size}):");
         let mut current = canonical;
         loop {
-            let title = &data.page(current).data.title;
-            println!("  - {title}");
+            let page = data.page(current);
+            let title = &page.data.title;
+            if page.data.redirect {
+                println!("  v {title}");
+            } else {
+                println!("  - {title}");
+            }
             current = forward.get(current);
             if current == canonical {
                 break;
