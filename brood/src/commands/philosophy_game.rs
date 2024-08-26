@@ -11,7 +11,7 @@ use crate::{
         info::{LinkInfo, PageInfo},
         store,
     },
-    PhilosophyGameCmd,
+    util, PhilosophyGameCmd,
 };
 
 struct PageMap(Vec<u32>);
@@ -142,6 +142,38 @@ fn print_forward_edges_as_json(
     Ok(())
 }
 
+fn print_trace(data: &AdjacencyList<PageInfo, LinkInfo>, forward: &PageMap, start: &str) {
+    let start_idx = util::resolve_redirects(data, util::find_index_of_title(&data.pages, start));
+
+    let mut current = start_idx;
+    let mut visited = HashSet::new();
+    loop {
+        let page = data.page(current);
+        let title = &page.data.title;
+        if page.data.redirect {
+            println!("  v {title}");
+        } else {
+            println!("  - {title}");
+        }
+
+        visited.insert(current);
+
+        let next = forward.get(current);
+
+        if next == u32::MAX {
+            println!("dead-end reached");
+            return;
+        }
+
+        if visited.contains(&next) {
+            println!("loop detected");
+            return;
+        }
+
+        current = next;
+    }
+}
+
 fn print_canonical_pages_as_json(
     data: &AdjacencyList<PageInfo, LinkInfo>,
     cluster: &PageMap,
@@ -171,10 +203,18 @@ pub fn run(datafile: &Path, subcmd: PhilosophyGameCmd) -> io::Result<()> {
     eprintln!(">> Forward");
     let forward = find_forward_edges(&data);
 
-    if subcmd == PhilosophyGameCmd::First {
-        eprintln!(">> First links");
-        print_forward_edges_as_json(&data, &forward)?;
-        return Ok(());
+    match subcmd {
+        PhilosophyGameCmd::First => {
+            eprintln!(">> First links");
+            print_forward_edges_as_json(&data, &forward)?;
+            return Ok(());
+        }
+        PhilosophyGameCmd::Trace { start } => {
+            eprintln!(">> Tracing");
+            print_trace(&data, &forward, &start);
+            return Ok(());
+        }
+        _ => {}
     }
 
     // Determine cluster for each page, represented via canonical page. The

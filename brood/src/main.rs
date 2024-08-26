@@ -12,6 +12,7 @@ pub enum PhilosophyGameCmd {
     First,
     Canonical,
     Cluster,
+    Trace { start: String },
 }
 
 #[derive(Debug, Parser)]
