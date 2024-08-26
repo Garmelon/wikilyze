@@ -90,6 +90,34 @@ fn find_clusters(data: &AdjacencyList<PageInfo, LinkInfo>, forward: &PageMap) ->
     cluster
 }
 
+enum Cluster {
+    DeadEnd(u32),
+    Loop(Vec<u32>),
+}
+
+fn resolve_clusters(forward: &PageMap, cluster: &PageMap) -> HashMap<u32, Cluster> {
+    let mut result = HashMap::new();
+    for canonical in cluster.0.iter().copied().collect::<HashSet<_>>() {
+        if forward.get(canonical) == u32::MAX {
+            result.insert(canonical, Cluster::DeadEnd(canonical));
+            continue;
+        }
+
+        let mut members = vec![];
+        let mut current = canonical;
+        loop {
+            members.push(current);
+            current = forward.get(current);
+            if current == canonical {
+                break;
+            }
+        }
+        result.insert(canonical, Cluster::Loop(members));
+    }
+
+    result
+}
+
 fn print_forward_edges_as_json(
     data: &AdjacencyList<PageInfo, LinkInfo>,
     forward: &PageMap,
@@ -173,26 +201,24 @@ pub fn run(datafile: &Path, subcmd: PhilosophyGameCmd) -> io::Result<()> {
 
     // Print clusters
     assert!(subcmd == PhilosophyGameCmd::Cluster);
+    let resolved = resolve_clusters(&forward, &cluster);
     for (canonical, size) in cluster_by_size {
-        if forward.get(canonical) == u32::MAX {
-            let title = &data.page(canonical).data.title;
-            println!("Cluster (dead-end, {size}): {title}");
-            continue;
-        }
-
-        println!("Cluster (loop, {size}):");
-        let mut current = canonical;
-        loop {
-            let page = data.page(current);
-            let title = &page.data.title;
-            if page.data.redirect {
-                println!("  v {title}");
-            } else {
-                println!("  - {title}");
+        match resolved.get(&canonical).unwrap() {
+            Cluster::DeadEnd(page) => {
+                let title = &data.page(*page).data.title;
+                println!("Cluster (dead-end, {size}): {title}");
             }
-            current = forward.get(current);
-            if current == canonical {
-                break;
+            Cluster::Loop(pages) => {
+                println!("Cluster ({}-loop, {size}):", pages.len());
+                for page in pages {
+                    let page = data.page(*page);
+                    let title = &page.data.title;
+                    if page.data.redirect {
+                        println!("  v {title}");
+                    } else {
+                        println!("  - {title}");
+                    }
+                }
             }
         }
     }
