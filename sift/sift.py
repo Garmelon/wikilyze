@@ -172,15 +172,20 @@ def process_xmldump_page(page):
 # Page info as simple tuples
 def simple_pages(input):
     dump = mwxml.Dump.from_file(sys.stdin)
+    articles = 0
     for i, page in enumerate(dump.pages):
+        if (i + 1) % 1000 == 0:
+            # Yeah, the articles are usually off by one
+            eprint(f"{i+1:8} pages, {articles:8} articles, at pid {page.id:8}")
+
         if page.namespace != 0:
             continue
 
-        if (i + 1) % 1000 == 0:
-            eprint(f"{i+1:8} pages, at pid {page.id:8}")
-
+        articles += 1
         [revision] = list(page)  # Every page has exactly one revision
         yield page.id, page.title, revision.text or "", page.redirect
+
+    eprint(f"{articles} articles total")
 
 
 def process_simple_page(info):
