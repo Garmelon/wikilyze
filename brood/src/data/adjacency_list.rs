@@ -10,7 +10,7 @@ pub struct Page<P> {
 }
 
 impl<P> Page<P> {
-    pub fn change_data<P2>(self, f: impl Fn(P) -> P2) -> Page<P2> {
+    pub fn change_data<P2>(self, f: &impl Fn(P) -> P2) -> Page<P2> {
         Page {
             start: self.start,
             data: f(self.data),
@@ -26,10 +26,17 @@ pub struct Link<L> {
 }
 
 impl<L> Link<L> {
-    pub fn change_data<L2>(self, f: impl Fn(L) -> L2) -> Link<L2> {
+    pub fn change_data<L2>(self, f: &impl Fn(L) -> L2) -> Link<L2> {
         Link {
             to: self.to,
             data: f(self.data),
+        }
+    }
+
+    pub fn change_data_with_page<P, L2>(self, page: &P, f: &impl Fn(&P, L) -> L2) -> Link<L2> {
+        Link {
+            to: self.to,
+            data: f(page, self.data),
         }
     }
 }
@@ -42,8 +49,8 @@ pub struct AdjacencyList<P, L> {
 impl<P, L> Default for AdjacencyList<P, L> {
     fn default() -> Self {
         Self {
-            pages: Default::default(),
-            links: Default::default(),
+            pages: vec![],
+            links: vec![],
         }
     }
 }
@@ -102,11 +109,11 @@ impl<P, L> AdjacencyList<P, L> {
         self.link_range(page_idx).map(|i| (i, self.link(i)))
     }
 
-    pub fn change_page_data<P2>(self, page_f: impl Fn(P) -> P2 + Copy) -> AdjacencyList<P2, L> {
+    pub fn change_page_data<P2>(self, page_f: impl Fn(P) -> P2) -> AdjacencyList<P2, L> {
         let pages = self
             .pages
             .into_iter()
-            .map(|p| p.change_data(page_f))
+            .map(|p| p.change_data(&page_f))
             .collect::<Vec<_>>();
 
         AdjacencyList {
@@ -115,12 +122,41 @@ impl<P, L> AdjacencyList<P, L> {
         }
     }
 
-    pub fn change_link_data<L2>(self, link_f: impl Fn(L) -> L2 + Copy) -> AdjacencyList<P, L2> {
+    pub fn change_link_data<L2>(self, link_f: impl Fn(L) -> L2) -> AdjacencyList<P, L2> {
         let links = self
             .links
             .into_iter()
-            .map(|l| l.change_data(link_f))
+            .map(|l| l.change_data(&link_f))
             .collect::<Vec<_>>();
+
+        AdjacencyList {
+            pages: self.pages,
+            links,
+        }
+    }
+
+    pub fn change_link_data_with_page<L2>(
+        self,
+        link_f: impl Fn(&P, L) -> L2,
+    ) -> AdjacencyList<P, L2> {
+        let mut pages = self.pages.iter().peekable();
+        let Some(mut cur_page) = pages.next() else {
+            // The list is empty, nothing to do
+            return AdjacencyList::default();
+        };
+
+        let mut links = vec![];
+
+        for (i, link) in self.links.into_iter().enumerate() {
+            if let Some(page) = pages.peek() {
+                if i >= page.start as usize {
+                    cur_page = page;
+                    pages.next();
+                }
+            }
+
+            links.push(link.change_data_with_page(&cur_page.data, &link_f));
+        }
 
         AdjacencyList {
             pages: self.pages,
