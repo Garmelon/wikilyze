@@ -196,6 +196,10 @@ impl Graph {
         }
     }
 
+    pub fn add_node(&mut self) {
+        self.nodes.push(EdgeIdx::new(self.edges.len()));
+    }
+
     pub fn check_consistency(&self) {
         if self.nodes.is_empty() {
             assert!(self.edges.is_empty(), "edges must belong to existing nodes");
