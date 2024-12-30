@@ -40,14 +40,6 @@ enum Command {
         #[arg(short, long)]
         flip: bool,
     },
-    /// Find a path from one article to another.
-    Path2 {
-        from: String,
-        to: String,
-        /// Flip start and end article.
-        #[arg(short, long)]
-        flip: bool,
-    },
     /// Find the longest shortest path starting at an article.
     LongestShortestPath {
         from: String,
@@ -88,13 +80,6 @@ fn main() -> io::Result<()> {
                 commands::path::path(&args.datafile, &to, &from)
             } else {
                 commands::path::path(&args.datafile, &from, &to)
-            }
-        }
-        Command::Path2 { from, to, flip } => {
-            if flip {
-                commands::path2::path(&args.datafile, &to, &from)
-            } else {
-                commands::path2::path(&args.datafile, &from, &to)
             }
         }
         Command::LongestShortestPath { from } => {
