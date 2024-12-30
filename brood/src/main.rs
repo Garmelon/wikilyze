@@ -44,6 +44,11 @@ enum Command {
     },
     /// Print all page titles.
     ListPages,
+    /// Print all links.
+    ListLinks {
+        /// The page to inspect.
+        page: String,
+    },
 }
 
 #[derive(Debug, Parser)]
@@ -76,5 +81,6 @@ fn main() -> io::Result<()> {
             commands::philosophy_game::run(&args.datafile, subcmd)
         }
         Command::ListPages => commands::list_pages::run(&args.datafile),
+        Command::ListLinks { page } => commands::list_links::run(&args.datafile, &page),
     }
 }
