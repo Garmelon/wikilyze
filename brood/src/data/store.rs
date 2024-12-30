@@ -1,5 +1,7 @@
 use std::io::{self, Read, Write};
 
+use crate::graph::{EdgeIdx, Graph, NodeIdx};
+
 use super::{
     adjacency_list::{AdjacencyList, Link, Page},
     info::{LinkInfo, PageInfo},
@@ -131,4 +133,28 @@ pub fn read_adjacency_list<R: Read>(from: &mut R) -> io::Result<AdjacencyList<Pa
     }
 
     Ok(AdjacencyList { pages, links })
+}
+
+pub fn read_graph(from: &mut impl Read) -> io::Result<(Vec<PageInfo>, Vec<LinkInfo>, Graph)> {
+    let n_pages = read_u32(from)?;
+    let n_links = read_u32(from)?;
+
+    let mut pages = Vec::with_capacity(n_pages as usize);
+    let mut links = Vec::with_capacity(n_links as usize);
+    let mut graph = Graph::with_capacity(n_pages as usize, n_links as usize);
+
+    for _ in 0..n_pages {
+        let page = read_page(from)?;
+        graph.nodes.push(EdgeIdx(page.start));
+        pages.push(page.data);
+    }
+
+    for _ in 0..n_links {
+        let link = read_link(from)?;
+        graph.edges.push(NodeIdx(link.to));
+        links.push(link.data);
+    }
+
+    graph.check_consistency();
+    Ok((pages, links, graph))
 }
