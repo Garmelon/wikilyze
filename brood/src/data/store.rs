@@ -1,7 +1,5 @@
 use std::io::{self, Read, Write};
 
-use petgraph::{graph::NodeIndex, Directed, Graph};
-
 use super::{
     adjacency_list::{AdjacencyList, Link, Page},
     info::{LinkInfo, PageInfo},
@@ -133,35 +131,4 @@ pub fn read_adjacency_list<R: Read>(from: &mut R) -> io::Result<AdjacencyList<Pa
     }
 
     Ok(AdjacencyList { pages, links })
-}
-
-pub fn read_petgraph<R: Read>(from: &mut R) -> io::Result<Graph<PageInfo, LinkInfo>> {
-    let n_pages = read_u32(from)?;
-    let n_links = read_u32(from)?;
-
-    let mut graph = Graph::<_, _, Directed, _>::with_capacity(n_pages as usize, n_links as usize);
-    let mut page_starts = Vec::with_capacity(n_pages as usize);
-
-    for _ in 0..n_pages {
-        let page = read_page(from)?;
-        page_starts.push(page.start);
-        graph.add_node(page.data);
-    }
-
-    let mut ni = 0;
-    for ei in 0..n_links {
-        while ei >= page_starts.get(ni).copied().unwrap_or(u32::MAX) {
-            ni += 1;
-        }
-        ni -= 1;
-
-        let link = read_link(from)?;
-        graph.add_edge(
-            NodeIndex::new(ni),
-            NodeIndex::new(link.to as usize),
-            link.data,
-        );
-    }
-
-    Ok(graph)
 }
