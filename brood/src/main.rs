@@ -35,6 +35,14 @@ enum Command {
         #[arg(short, long)]
         flip: bool,
     },
+    /// Find a path from one article to another.
+    PathPetgraph {
+        from: String,
+        to: String,
+        /// Flip start and end article.
+        #[arg(short, long)]
+        flip: bool,
+    },
     /// Find the longest shortest path starting at an article.
     LongestShortestPath { from: String },
     /// Analyze articles using "Philosophy Game" rules.
@@ -72,6 +80,13 @@ fn main() -> io::Result<()> {
                 commands::path::path(&args.datafile, &to, &from)
             } else {
                 commands::path::path(&args.datafile, &from, &to)
+            }
+        }
+        Command::PathPetgraph { from, to, flip } => {
+            if flip {
+                commands::path_petgraph::path(&args.datafile, &to, &from)
+            } else {
+                commands::path_petgraph::path(&args.datafile, &from, &to)
             }
         }
         Command::LongestShortestPath { from } => {
