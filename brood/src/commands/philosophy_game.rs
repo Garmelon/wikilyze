@@ -161,12 +161,14 @@ fn print_trace(data: &AdjacencyList<PageInfo, LinkInfo>, forward: &PageMap, star
         let next = forward.get(current);
 
         if next == u32::MAX {
-            println!("dead-end reached");
+            println!("> dead-end reached");
             return;
         }
 
         if visited.contains(&next) {
-            println!("loop detected");
+            let page = data.page(next);
+            let title = &page.data.title;
+            println!("> loop detected ({title})");
             return;
         }
 
