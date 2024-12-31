@@ -37,9 +37,14 @@ fn read_titles(r: &mut BufReader<File>) -> io::Result<Vec<String>> {
     Ok(titles)
 }
 
-/// Returns a map from normalized title to 1. the original index in the sift
-/// data where the article should be taken from, and 2. the index in the brood
-/// data where the article will appear.
+/// Returns a map from normalized title to the index in the brood data where the
+/// article will appear.
+///
+/// Titles in the title list are not always unique. When multiple identical
+/// titles appear, all but one have to be discarded. Originally, I tried to be
+/// smart and keep the last occurrence (under the assumption that its data would
+/// be the newest), but this led to index-based bugs. Because of this, I now
+/// keep the first occurrence.
 fn compute_title_lookup(
     normalizer: &TitleNormalizer,
     titles: &[String],
@@ -59,14 +64,11 @@ fn compute_title_lookup(
             Entry::Vacant(entry) => {
                 entry.insert((sift_i as u32, brood_i as u32));
             }
-            Entry::Occupied(mut entry) => {
+            Entry::Occupied(entry) => {
                 let prev_sift_i = entry.get().0;
                 let prev = &titles[prev_sift_i as usize];
                 if prev == title {
                     println!("  {title:?} ({prev_sift_i}) occurs again at {sift_i}");
-                    // Prefer later occurrences of articles over earlier ones under
-                    // the assumption that their contents are "fresher".
-                    entry.get_mut().0 = sift_i as u32;
                 } else {
                     println!(
                         "  {prev:?} ({prev_sift_i}) and {title:?} ({sift_i}) both normalize to {:?}",
@@ -157,6 +159,7 @@ impl Cmd {
 
         println!("> Reading page data");
         let (pages, links, graph) = read_page_data(&normalizer, &title_lookup, &mut sift_data)?;
+        assert_eq!(pages.len(), title_lookup.len());
         drop(title_lookup); // Don't hoard memory
         drop(sift_data); // No longer needed
 
