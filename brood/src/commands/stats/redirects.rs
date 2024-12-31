@@ -54,19 +54,19 @@ fn follow_redirect(data: &Data, start: NodeIdx) -> Vec<NodeIdx> {
     nodes
 }
 
-/// Show interesting redirect stats.
+/// Show redirect stats.
 #[derive(Debug, clap::Parser)]
 pub struct Cmd {
+    /// Show more detailed info.
     #[arg(long, short)]
     long: bool,
 }
 
 impl Cmd {
     pub fn run(self, data: Data) -> io::Result<()> {
-        println!(">> Resolving redirects");
+        println!(">> Resolve redirects");
         let redirects = find_redirects(&data);
 
-        println!();
         println!(
             "There is a total of {} redirects.",
             redirects.len().separate_with_underscores()
