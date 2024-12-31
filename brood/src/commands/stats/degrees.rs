@@ -1,5 +1,7 @@
 use std::{cmp::Reverse, io};
 
+use thousands::Separable;
+
 use crate::{
     algo,
     data::{Data, Page},
@@ -77,8 +79,14 @@ impl Cmd {
     }
 
     fn print_links(&self, by_degrees: &Vec<(&Page, usize, usize)>) {
-        for (page, od, id) in by_degrees.iter().take(self.top) {
-            println!("{} ({od} out, {id} in)", util::fmt_page(page));
+        for (i, (page, od, id)) in by_degrees.iter().take(self.top).enumerate() {
+            println!(
+                "{:3}. {} ({} out, {} in)",
+                i + 1,
+                util::fmt_page(page),
+                od.separate_with_underscores(),
+                id.separate_with_underscores()
+            );
         }
     }
 }
