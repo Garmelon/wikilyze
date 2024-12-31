@@ -28,6 +28,10 @@ struct Args {
     in_structure: Option<bool>,
     #[arg(long, short = 'R')]
     resolve_redirects: bool,
+    #[arg(long, short = 'I')]
+    invert_edges: bool,
+    #[arg(long, short)]
+    check_consistency: bool,
 }
 
 fn main() -> io::Result<()> {
@@ -38,6 +42,7 @@ fn main() -> io::Result<()> {
     }
 
     println!(">> Import");
+    println!("> Reading data");
     let mut data = Data::read_from_file(&args.datafile)?;
 
     if args.in_parens.is_some() || args.in_structure.is_some() {
@@ -51,6 +56,16 @@ fn main() -> io::Result<()> {
     if args.resolve_redirects {
         println!("> Resolving redirects");
         algo::resolve_redirects(&mut data);
+    }
+
+    if args.invert_edges {
+        println!("> Inverting edges");
+        algo::invert(&mut data);
+    }
+
+    if args.check_consistency {
+        println!("> Checking consistencey");
+        data.check_consistency();
     }
 
     match args.command {

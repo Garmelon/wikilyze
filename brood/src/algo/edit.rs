@@ -72,3 +72,26 @@ pub fn resolve_redirects(data: &mut Data) {
         }
     }
 }
+
+pub fn invert(data: &mut Data) {
+    let links = mem::take(&mut data.links);
+    let graph = mem::take(&mut data.graph);
+
+    let mut edges = graph
+        .edges()
+        .zip(links)
+        .map(|((source, target), link)| (source, target, link))
+        .collect::<Vec<_>>();
+
+    edges.sort_by_key(|(_, target, _)| *target);
+
+    let mut edges = edges.into_iter().peekable();
+    for node in graph.nodes() {
+        data.graph.add_node();
+        while edges.peek().is_some_and(|(_, target, _)| *target <= node) {
+            let (source, _, link) = edges.next().unwrap();
+            data.graph.add_edge(source);
+            data.links.push(link);
+        }
+    }
+}
