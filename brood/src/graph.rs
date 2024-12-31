@@ -215,8 +215,8 @@ impl Graph {
 
         for (ni, node) in self.nodes.iter().cloned().enumerate() {
             assert!(
-                node.usize() < self.edges.len(),
-                "node pointers must in range"
+                node.usize() <= self.edges.len(),
+                "node pointers must be in range"
             );
 
             if let Some(succ) = self.nodes.get(ni + 1) {
