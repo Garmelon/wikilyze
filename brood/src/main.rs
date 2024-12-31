@@ -14,8 +14,9 @@ enum Command {
     Ingest(commands::ingest::Cmd),
     Export(commands::export::Cmd),
     Show(commands::show::Cmd),
-    Path(commands::path::Cmd),
     Stats(commands::stats::Cmd),
+    Path(commands::path::Cmd),
+    LongestPath(commands::longest_path::Cmd),
 }
 
 #[derive(Debug, Parser)]
@@ -73,7 +74,8 @@ fn main() -> io::Result<()> {
         Command::Ingest(_) => unreachable!(),
         Command::Export(cmd) => cmd.run(data),
         Command::Show(cmd) => cmd.run(data),
-        Command::Path(cmd) => cmd.run(data),
         Command::Stats(cmd) => cmd.run(data),
+        Command::Path(cmd) => cmd.run(data),
+        Command::LongestPath(cmd) => cmd.run(data),
     }
 }
