@@ -31,8 +31,6 @@ impl Link {
     }
 }
 
-struct Store<'a, W>(&'a mut W);
-
 fn write_u8(w: &mut impl Write, n: u8) -> io::Result<()> {
     w.write_all(&n.to_le_bytes())
 }

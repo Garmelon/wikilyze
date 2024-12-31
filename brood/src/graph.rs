@@ -89,8 +89,6 @@ impl SubAssign<u32> for NodeIdx {
 pub struct EdgeIdx(pub u32);
 
 impl EdgeIdx {
-    pub const NONE: Self = Self(u32::MAX);
-
     #[inline]
     pub const fn new(value: usize) -> Self {
         Self(value as u32)
@@ -185,10 +183,6 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn with_capacity(nodes: usize, edges: usize) -> Self {
         Self {
             nodes: Vec::with_capacity(nodes),

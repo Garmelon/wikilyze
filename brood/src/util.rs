@@ -1,11 +1,11 @@
-use std::{fmt, iter, thread::panicking, time::Instant};
+use std::{fmt, time::Instant};
 
 use regex::Regex;
 use thousands::Separable;
 
 use crate::{
     data::{Data, Page},
-    graph::{Graph, NodeIdx},
+    graph::NodeIdx,
 };
 
 pub struct Counter {
