@@ -1,10 +1,11 @@
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::Entry,
     fs::File,
     io::{self, BufRead, BufReader, Seek},
     path::{Path, PathBuf},
 };
 
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use thousands::Separable;
 
@@ -48,9 +49,9 @@ fn read_titles(r: &mut BufReader<File>) -> io::Result<Vec<String>> {
 fn compute_title_lookup(
     normalizer: &TitleNormalizer,
     titles: &[String],
-) -> HashMap<String, (u32, u32)> {
+) -> FxHashMap<String, (u32, u32)> {
     let mut counter = Counter::new();
-    let mut title_lookup = HashMap::<String, (u32, u32)>::new();
+    let mut title_lookup = FxHashMap::<String, (u32, u32)>::default();
 
     for (sift_i, title) in titles.iter().enumerate() {
         counter.tick();
@@ -85,7 +86,7 @@ fn compute_title_lookup(
 
 fn read_page_data(
     normalizer: &TitleNormalizer,
-    title_lookup: &HashMap<String, (u32, u32)>,
+    title_lookup: &FxHashMap<String, (u32, u32)>,
     r: &mut BufReader<File>,
 ) -> io::Result<(Vec<Page>, Vec<Link>, Graph)> {
     let mut counter = Counter::new();
