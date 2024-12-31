@@ -12,6 +12,7 @@ use data::Data;
 #[derive(Debug, Parser)]
 enum Command {
     Ingest(commands::ingest::Cmd),
+    Export(commands::export::Cmd),
     Show(commands::show::Cmd),
     Path(commands::path::Cmd),
 }
@@ -54,6 +55,7 @@ fn main() -> io::Result<()> {
 
     match args.command {
         Command::Ingest(_) => unreachable!(),
+        Command::Export(cmd) => cmd.run(data),
         Command::Show(cmd) => cmd.run(data),
         Command::Path(cmd) => cmd.run(data),
     }
