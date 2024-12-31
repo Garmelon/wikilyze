@@ -240,11 +240,6 @@ impl Graph {
         Edges::new(self)
     }
 
-    pub fn edges_for(&self, node: NodeIdx) -> impl Iterator<Item = (EdgeIdx, NodeIdx)> + '_ {
-        self.edge_range(node)
-            .map(|i| (EdgeIdx::new(i), self.edges[i]))
-    }
-
     pub fn edge_start(&self, node: NodeIdx) -> EdgeIdx {
         self.nodes
             .get(node.usize())
