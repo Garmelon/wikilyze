@@ -170,3 +170,11 @@ pub fn resolve_redirects(data: &Data, mut page: NodeIdx) -> NodeIdx {
 pub fn resolve_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> NodeIdx {
     resolve_redirects(data, locate_title(normalizer, data, title))
 }
+
+pub fn fmt_page(page: &Page) -> String {
+    if page.redirect {
+        format!("v {}", page.title)
+    } else {
+        format!("- {}", page.title)
+    }
+}

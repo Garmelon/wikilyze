@@ -48,12 +48,7 @@ impl Cmd {
         println!();
         println!("Path found (cost {cost}, length {}):", path.len());
         for page in path {
-            let info = &data.pages[page.usize()];
-            if info.redirect {
-                println!("v {:?}", info.title);
-            } else {
-                println!("- {:?}", info.title);
-            }
+            println!("{}", util::fmt_page(&data.pages[page.usize()]));
         }
 
         Ok(())
