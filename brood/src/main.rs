@@ -15,6 +15,7 @@ enum Command {
     Export(commands::export::Cmd),
     Show(commands::show::Cmd),
     Path(commands::path::Cmd),
+    Redirects(commands::redirects::Cmd),
 }
 
 #[derive(Debug, Parser)]
@@ -73,5 +74,6 @@ fn main() -> io::Result<()> {
         Command::Export(cmd) => cmd.run(data),
         Command::Show(cmd) => cmd.run(data),
         Command::Path(cmd) => cmd.run(data),
+        Command::Redirects(cmd) => cmd.run(data),
     }
 }
