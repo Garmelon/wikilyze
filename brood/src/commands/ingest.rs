@@ -121,7 +121,7 @@ fn read_page_data(
 
         for (target, start, len, flags) in page_links {
             if let Some((_, brood_i)) = title_lookup.get(&normalizer.normalize(&target)) {
-                data.graph.edges.push(NodeIdx(*brood_i));
+                data.graph.add_edge(NodeIdx(*brood_i));
                 data.links.push(Link { start, len, flags });
             }
         }
@@ -139,7 +139,7 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    pub fn run(self, brood_data: &Path) -> io::Result<()> {
+    pub fn run(&self, brood_data: &Path) -> io::Result<()> {
         let normalizer = TitleNormalizer::new();
 
         println!(">> First pass");
@@ -162,7 +162,7 @@ impl Cmd {
         drop(sift_data); // No longer needed
 
         println!("> Checking consistency");
-        data.graph.check_consistency();
+        data.check_consistency();
 
         println!(">> Export");
         println!(

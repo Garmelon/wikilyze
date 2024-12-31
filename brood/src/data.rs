@@ -192,6 +192,22 @@ impl Data {
         Self::read(&mut file)
     }
 
+    pub fn check_consistency(&self) {
+        assert_eq!(
+            self.pages.len(),
+            self.graph.nodes.len(),
+            "inconsistent number of pages"
+        );
+
+        assert_eq!(
+            self.links.len(),
+            self.graph.edges.len(),
+            "inconsistent number of links"
+        );
+
+        self.graph.check_consistency();
+    }
+
     pub fn redirect_target(&self, node: NodeIdx) -> Option<NodeIdx> {
         if !self.pages[node.usize()].redirect {
             return None;

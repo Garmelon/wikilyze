@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::io;
 
 use crate::{
     algo::Dijkstra,
@@ -14,11 +14,8 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    pub fn run(self, data: &Path) -> io::Result<()> {
+    pub fn run(self, data: Data) -> io::Result<()> {
         let normalizer = TitleNormalizer::new();
-
-        println!(">> Import");
-        let data = Data::read_from_file(data)?;
 
         println!(">> Resolve articles");
         let start = util::resolve_title(&normalizer, &data, &self.start);

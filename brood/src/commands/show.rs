@@ -1,4 +1,4 @@
-use std::{collections::HashSet, io, path::Path};
+use std::{collections::HashSet, io};
 
 use thousands::Separable;
 
@@ -18,11 +18,8 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    pub fn run(self, data: &Path) -> io::Result<()> {
+    pub fn run(self, data: Data) -> io::Result<()> {
         let normalizer = TitleNormalizer::new();
-
-        println!(">> Import");
-        let data = Data::read_from_file(data)?;
 
         println!(">> Locate article");
         let mut node = util::locate_title(&normalizer, &data, &self.title);
