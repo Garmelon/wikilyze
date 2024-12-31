@@ -37,30 +37,42 @@ fn read_titles(r: &mut BufReader<File>) -> io::Result<Vec<String>> {
     Ok(titles)
 }
 
-fn compute_title_lookup(normalizer: &TitleNormalizer, titles: &[String]) -> HashMap<String, u32> {
+/// Returns a map from normalized title to 1. the original index in the sift
+/// data where the article should be taken from, and 2. the index in the brood
+/// data where the article will appear.
+fn compute_title_lookup(
+    normalizer: &TitleNormalizer,
+    titles: &[String],
+) -> HashMap<String, (u32, u32)> {
     let mut counter = Counter::new();
-    let mut title_lookup = HashMap::new();
+    let mut title_lookup = HashMap::<String, (u32, u32)>::new();
 
-    for (i, title) in titles.iter().enumerate() {
+    for (sift_i, title) in titles.iter().enumerate() {
         counter.tick();
+
+        // The index where this article will appear in the final list, assuming
+        // it is not a duplicate. For ownership reasons, we compute this here
+        // instead of inside the Entry::Vacant branch of the following match.
+        let brood_i = title_lookup.len();
+
         match title_lookup.entry(normalizer.normalize(title)) {
+            Entry::Vacant(entry) => {
+                entry.insert((sift_i as u32, brood_i as u32));
+            }
             Entry::Occupied(mut entry) => {
-                let prev_i = *entry.get();
-                let prev = &titles[prev_i as usize];
+                let prev_sift_i = entry.get().0;
+                let prev = &titles[prev_sift_i as usize];
                 if prev == title {
-                    println!("  {title:?} ({prev_i}) occurs again at {i}");
+                    println!("  {title:?} ({prev_sift_i}) occurs again at {sift_i}");
                     // Prefer later occurrences of articles over earlier ones under
                     // the assumption that their contents are "fresher".
-                    entry.insert(i as u32);
+                    entry.get_mut().0 = sift_i as u32;
                 } else {
                     println!(
-                        "  {prev:?} ({prev_i}) and {title:?} ({i}) both normalize to {:?}",
+                        "  {prev:?} ({prev_sift_i}) and {title:?} ({sift_i}) both normalize to {:?}",
                         normalizer.normalize(title)
                     );
                 }
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(i as u32);
             }
         }
     }
@@ -71,7 +83,7 @@ fn compute_title_lookup(normalizer: &TitleNormalizer, titles: &[String]) -> Hash
 
 fn read_page_data(
     normalizer: &TitleNormalizer,
-    title_lookup: &HashMap<String, u32>,
+    title_lookup: &HashMap<String, (u32, u32)>,
     r: &mut BufReader<File>,
 ) -> io::Result<(Vec<Page>, Vec<Link>, Graph)> {
     let mut counter = Counter::new();
@@ -84,11 +96,11 @@ fn read_page_data(
         let page = serde_json::from_str::<JsonPage>(&line?).unwrap();
         let normalized = normalizer.normalize(&page.title);
 
-        let expected_i = title_lookup[&normalized];
-        if i as u32 != expected_i {
+        let (sift_i, _) = title_lookup[&normalized];
+        if i as u32 != sift_i {
             // Articles may occur multiple times, and this is not the instance
             // of the article we should keep.
-            println!("  Skipping {:?} ({i}) in favor of {expected_i}", page.title);
+            println!("  Skipping {:?} ({i}) in favor of {sift_i}", page.title);
             continue;
         }
 
@@ -108,8 +120,8 @@ fn read_page_data(
         }
 
         for (target, start, len, flags) in page_links {
-            if let Some(target_i) = title_lookup.get(&normalizer.normalize(&target)) {
-                graph.edges.push(NodeIdx(*target_i));
+            if let Some((_, brood_i)) = title_lookup.get(&normalizer.normalize(&target)) {
+                graph.edges.push(NodeIdx(*brood_i));
                 links.push(Link { start, len, flags });
             }
         }
@@ -152,8 +164,8 @@ impl Cmd {
         graph.check_consistency();
 
         println!(">> Export");
-        println!("Pages: {}", pages.len().separate_with_underscores());
-        println!("Links: {}", links.len().separate_with_underscores());
+        println!("Pages: {:>13}", pages.len().separate_with_underscores());
+        println!("Links: {:>13}", links.len().separate_with_underscores());
         data::write_to_file(data, &pages, &links, &graph)?;
 
         Ok(())
