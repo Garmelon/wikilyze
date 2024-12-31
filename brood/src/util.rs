@@ -1,7 +1,12 @@
-use std::{fmt, iter, time::Instant};
+use std::{fmt, iter, thread::panicking, time::Instant};
 
 use regex::Regex;
 use thousands::Separable;
+
+use crate::{
+    data::Page,
+    graph::{Graph, NodeIdx},
+};
 
 pub struct Counter {
     n: usize,
@@ -145,27 +150,34 @@ impl TitleNormalizer {
     }
 }
 
-/*
-pub fn find_index_of_title(pages: &[Page<PageInfo>], title: &str) -> u32 {
-    let title = normalize_link(title);
+pub fn locate_title(normalizer: &TitleNormalizer, pages: &[Page], title: &str) -> NodeIdx {
+    let normalized = normalizer.normalize(title);
     pages
         .iter()
         .enumerate()
-        .find(|(_, p)| normalize_link(&p.data.title) == title)
-        .map(|(i, _)| i)
-        .expect("invalid title") as u32
+        .find(|(_, p)| normalizer.normalize(&p.title) == normalized)
+        .map(|(i, _)| NodeIdx::new(i))
+        .expect("invalid title")
 }
 
-pub fn resolve_redirects(data: &AdjacencyList<PageInfo, LinkInfo>, mut page_idx: u32) -> u32 {
+pub fn resolve_redirects(pages: &[Page], graph: &Graph, mut page: NodeIdx) -> NodeIdx {
     loop {
-        if data.page(page_idx).data.redirect {
-            if let Some(link_idx) = data.link_redirect(page_idx) {
-                page_idx = data.link(link_idx).to;
+        if pages[page.usize()].redirect {
+            if let Some(target) = graph.edges_for(page).first() {
+                page = *target;
                 continue;
             }
         }
 
-        return page_idx;
+        return page;
     }
 }
-*/
+
+pub fn resolve_title(
+    normalizer: &TitleNormalizer,
+    pages: &[Page],
+    graph: &Graph,
+    title: &str,
+) -> NodeIdx {
+    resolve_redirects(pages, graph, locate_title(normalizer, pages, title))
+}
