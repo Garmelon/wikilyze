@@ -1,4 +1,4 @@
-use std::{fmt, time::Instant};
+use std::{collections::HashSet, fmt, time::Instant};
 
 use regex::Regex;
 use thousands::Separable;
@@ -160,11 +160,25 @@ pub fn locate_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> N
         .expect("invalid title")
 }
 
-pub fn resolve_redirects(data: &Data, mut page: NodeIdx) -> NodeIdx {
-    while let Some(target) = data.redirect_target(page) {
-        page = target;
+pub fn resolve_redirects(data: &Data, node: NodeIdx) -> NodeIdx {
+    let mut curr = node;
+    let mut seen = HashSet::new();
+
+    seen.insert(curr);
+    while let Some(target) = data.redirect_target(curr) {
+        if seen.contains(&target) {
+            println!(
+                "  Redirect cycle deteted: {:?}",
+                data.pages[node.usize()].title
+            );
+            break;
+        }
+
+        seen.insert(target);
+        curr = target;
     }
-    page
+
+    curr
 }
 
 pub fn resolve_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> NodeIdx {
