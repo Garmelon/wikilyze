@@ -17,6 +17,7 @@ enum Command {
     Stats(commands::stats::Cmd),
     Path(commands::path::Cmd),
     LongestPath(commands::longest_path::Cmd),
+    Pg(commands::pg::Cmd),
 }
 
 #[derive(Debug, Parser)]
@@ -77,5 +78,6 @@ fn main() -> io::Result<()> {
         Command::Stats(cmd) => cmd.run(data),
         Command::Path(cmd) => cmd.run(data),
         Command::LongestPath(cmd) => cmd.run(data),
+        Command::Pg(cmd) => cmd.run(data),
     }
 }
