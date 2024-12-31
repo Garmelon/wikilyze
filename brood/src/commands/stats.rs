@@ -1,3 +1,4 @@
+mod degrees;
 mod redirects;
 
 use std::io;
@@ -8,6 +9,7 @@ use crate::data::Data;
 
 #[derive(Debug, clap::Parser)]
 enum Command {
+    Degrees(degrees::Cmd),
     Redirects(redirects::Cmd),
 }
 
@@ -22,6 +24,7 @@ impl Cmd {
     pub fn run(self, data: Data) -> io::Result<()> {
         if let Some(cmd) = self.command {
             return match cmd {
+                Command::Degrees(cmd) => cmd.run(data),
                 Command::Redirects(cmd) => cmd.run(data),
             };
         }
