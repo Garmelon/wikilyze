@@ -11,6 +11,7 @@ use clap::Parser;
 #[derive(Debug, Parser)]
 enum Command {
     Ingest(commands::ingest::Cmd),
+    Show(commands::show::Cmd),
     Path(commands::path::Cmd),
 }
 
@@ -25,6 +26,7 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
     match args.command {
         Command::Ingest(cmd) => cmd.run(&args.datafile),
+        Command::Show(cmd) => cmd.run(&args.datafile),
         Command::Path(cmd) => cmd.run(&args.datafile),
     }
 }

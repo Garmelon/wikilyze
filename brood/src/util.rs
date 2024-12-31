@@ -161,16 +161,10 @@ pub fn locate_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> N
 }
 
 pub fn resolve_redirects(data: &Data, mut page: NodeIdx) -> NodeIdx {
-    loop {
-        if data.pages[page.usize()].redirect {
-            if let Some(target) = data.graph.edge_slice(page).first() {
-                page = *target;
-                continue;
-            }
-        }
-
-        return page;
+    while let Some(target) = data.redirect_target(page) {
+        page = target;
     }
+    page
 }
 
 pub fn resolve_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> NodeIdx {

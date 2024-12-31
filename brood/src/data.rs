@@ -193,4 +193,12 @@ impl Data {
         let mut file = BufReader::new(File::open(path)?);
         Self::read(&mut file)
     }
+
+    pub fn redirect_target(&self, node: NodeIdx) -> Option<NodeIdx> {
+        if !self.pages[node.usize()].redirect {
+            return None;
+        }
+
+        self.graph.edge_slice(node).first().copied()
+    }
 }
