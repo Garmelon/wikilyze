@@ -4,7 +4,7 @@ use regex::Regex;
 use thousands::Separable;
 
 use crate::{
-    data::Page,
+    data::{Data, Page},
     graph::{Graph, NodeIdx},
 };
 
@@ -150,9 +150,9 @@ impl TitleNormalizer {
     }
 }
 
-pub fn locate_title(normalizer: &TitleNormalizer, pages: &[Page], title: &str) -> NodeIdx {
+pub fn locate_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> NodeIdx {
     let normalized = normalizer.normalize(title);
-    pages
+    data.pages
         .iter()
         .enumerate()
         .find(|(_, p)| normalizer.normalize(&p.title) == normalized)
@@ -160,10 +160,10 @@ pub fn locate_title(normalizer: &TitleNormalizer, pages: &[Page], title: &str) -
         .expect("invalid title")
 }
 
-pub fn resolve_redirects(pages: &[Page], graph: &Graph, mut page: NodeIdx) -> NodeIdx {
+pub fn resolve_redirects(data: &Data, mut page: NodeIdx) -> NodeIdx {
     loop {
-        if pages[page.usize()].redirect {
-            if let Some(target) = graph.edges_for(page).first() {
+        if data.pages[page.usize()].redirect {
+            if let Some(target) = data.graph.edge_slice(page).first() {
                 page = *target;
                 continue;
             }
@@ -173,11 +173,6 @@ pub fn resolve_redirects(pages: &[Page], graph: &Graph, mut page: NodeIdx) -> No
     }
 }
 
-pub fn resolve_title(
-    normalizer: &TitleNormalizer,
-    pages: &[Page],
-    graph: &Graph,
-    title: &str,
-) -> NodeIdx {
-    resolve_redirects(pages, graph, locate_title(normalizer, pages, title))
+pub fn resolve_title(normalizer: &TitleNormalizer, data: &Data, title: &str) -> NodeIdx {
+    resolve_redirects(data, locate_title(normalizer, data, title))
 }

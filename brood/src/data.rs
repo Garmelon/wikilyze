@@ -109,69 +109,88 @@ fn read_link(r: &mut impl Read) -> io::Result<Link> {
     })
 }
 
-fn write(w: &mut impl Write, pages: &[Page], links: &[Link], graph: &Graph) -> io::Result<()> {
-    assert!(pages.len() < u32::MAX as usize);
-    assert!(links.len() < u32::MAX as usize);
-    assert_eq!(pages.len(), graph.nodes.len());
-    assert_eq!(links.len(), graph.edges.len());
-    write_u32(w, pages.len() as u32)?;
-    write_u32(w, links.len() as u32)?;
-
-    for page in pages {
-        write_page(w, page)?;
-    }
-
-    for link in links {
-        write_link(w, link)?;
-    }
-
-    for node in &graph.nodes {
-        write_u32(w, node.0)?;
-    }
-
-    for edge in &graph.edges {
-        write_u32(w, edge.0)?;
-    }
-
-    Ok(())
+#[derive(Default)]
+pub struct Data {
+    pub pages: Vec<Page>,
+    pub links: Vec<Link>,
+    pub graph: Graph,
 }
 
-fn read(r: &mut impl Read) -> io::Result<(Vec<Page>, Vec<Link>, Graph)> {
-    let n_pages = read_u32(r)?;
-    let n_links = read_u32(r)?;
-
-    let mut pages = Vec::with_capacity(n_pages as usize);
-    let mut links = Vec::with_capacity(n_links as usize);
-    let mut graph = Graph::with_capacity(n_pages as usize, n_links as usize);
-
-    for _ in 0..n_pages {
-        pages.push(read_page(r)?);
+impl Data {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    for _ in 0..n_links {
-        links.push(read_link(r)?);
+    pub fn with_capacity(pages: usize, links: usize) -> Self {
+        Self {
+            pages: Vec::with_capacity(pages),
+            links: Vec::with_capacity(links),
+            graph: Graph::with_capacity(pages, links),
+        }
     }
 
-    for _ in 0..n_pages {
-        graph.nodes.push(EdgeIdx(read_u32(r)?));
+    fn write(&self, w: &mut impl Write) -> io::Result<()> {
+        assert!(self.pages.len() < u32::MAX as usize);
+        assert!(self.links.len() < u32::MAX as usize);
+        assert_eq!(self.pages.len(), self.graph.nodes.len());
+        assert_eq!(self.links.len(), self.graph.edges.len());
+        write_u32(w, self.pages.len() as u32)?;
+        write_u32(w, self.links.len() as u32)?;
+
+        for page in &self.pages {
+            write_page(w, page)?;
+        }
+
+        for link in &self.links {
+            write_link(w, link)?;
+        }
+
+        for node in &self.graph.nodes {
+            write_u32(w, node.0)?;
+        }
+
+        for edge in &self.graph.edges {
+            write_u32(w, edge.0)?;
+        }
+
+        Ok(())
     }
 
-    for _ in 0..n_links {
-        graph.edges.push(NodeIdx(read_u32(r)?));
+    fn read(r: &mut impl Read) -> io::Result<Self> {
+        let n_pages = read_u32(r)?;
+        let n_links = read_u32(r)?;
+
+        let mut result = Self::with_capacity(n_pages as usize, n_links as usize);
+
+        for _ in 0..n_pages {
+            result.pages.push(read_page(r)?);
+        }
+
+        for _ in 0..n_links {
+            result.links.push(read_link(r)?);
+        }
+
+        for _ in 0..n_pages {
+            result.graph.nodes.push(EdgeIdx(read_u32(r)?));
+        }
+
+        for _ in 0..n_links {
+            result.graph.edges.push(NodeIdx(read_u32(r)?));
+        }
+
+        assert_eq!(result.pages.len(), result.graph.nodes.len());
+        assert_eq!(result.links.len(), result.graph.edges.len());
+        result.graph.check_consistency();
+        Ok(result)
     }
 
-    assert_eq!(pages.len(), graph.nodes.len());
-    assert_eq!(links.len(), graph.edges.len());
-    graph.check_consistency();
-    Ok((pages, links, graph))
-}
+    pub fn write_to_file(&self, path: &Path) -> io::Result<()> {
+        let mut file = BufWriter::new(File::create(path)?);
+        self.write(&mut file)
+    }
 
-pub fn write_to_file(path: &Path, pages: &[Page], links: &[Link], graph: &Graph) -> io::Result<()> {
-    let mut file = BufWriter::new(File::create(path)?);
-    write(&mut file, pages, links, graph)
-}
-
-pub fn read_from_file(path: &Path) -> io::Result<(Vec<Page>, Vec<Link>, Graph)> {
-    let mut file = BufReader::new(File::open(path)?);
-    read(&mut file)
+    pub fn read_from_file(path: &Path) -> io::Result<Self> {
+        let mut file = BufReader::new(File::open(path)?);
+        Self::read(&mut file)
+    }
 }

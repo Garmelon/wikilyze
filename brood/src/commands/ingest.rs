@@ -9,8 +9,8 @@ use serde::Deserialize;
 use thousands::Separable;
 
 use crate::{
-    data::{self, Link, Page},
-    graph::{Graph, NodeIdx},
+    data::{Data, Link, Page},
+    graph::NodeIdx,
     util::{Counter, TitleNormalizer},
 };
 
@@ -87,11 +87,9 @@ fn read_page_data(
     normalizer: &TitleNormalizer,
     title_lookup: &HashMap<String, (u32, u32)>,
     r: &mut BufReader<File>,
-) -> io::Result<(Vec<Page>, Vec<Link>, Graph)> {
+) -> io::Result<Data> {
     let mut counter = Counter::new();
-    let mut pages = vec![];
-    let mut links = vec![];
-    let mut graph = Graph::new();
+    let mut data = Data::new();
 
     for (i, line) in r.lines().enumerate() {
         counter.tick();
@@ -106,8 +104,8 @@ fn read_page_data(
             continue;
         }
 
-        graph.add_node();
-        pages.push(Page {
+        data.graph.add_node();
+        data.pages.push(Page {
             id: page.id,
             title: page.title,
             length: page.length,
@@ -123,14 +121,14 @@ fn read_page_data(
 
         for (target, start, len, flags) in page_links {
             if let Some((_, brood_i)) = title_lookup.get(&normalizer.normalize(&target)) {
-                graph.edges.push(NodeIdx(*brood_i));
-                links.push(Link { start, len, flags });
+                data.graph.edges.push(NodeIdx(*brood_i));
+                data.links.push(Link { start, len, flags });
             }
         }
     }
 
     counter.done();
-    Ok((pages, links, graph))
+    Ok(data)
 }
 
 /// Convert sift data to brood data.
@@ -141,7 +139,7 @@ pub struct Cmd {
 }
 
 impl Cmd {
-    pub fn run(self, data: &Path) -> io::Result<()> {
+    pub fn run(self, brood_data: &Path) -> io::Result<()> {
         let normalizer = TitleNormalizer::new();
 
         println!(">> First pass");
@@ -158,18 +156,24 @@ impl Cmd {
         sift_data.seek(io::SeekFrom::Start(0))?;
 
         println!("> Reading page data");
-        let (pages, links, graph) = read_page_data(&normalizer, &title_lookup, &mut sift_data)?;
-        assert_eq!(pages.len(), title_lookup.len());
+        let data = read_page_data(&normalizer, &title_lookup, &mut sift_data)?;
+        assert_eq!(data.pages.len(), title_lookup.len());
         drop(title_lookup); // Don't hoard memory
         drop(sift_data); // No longer needed
 
         println!("> Checking consistency");
-        graph.check_consistency();
+        data.graph.check_consistency();
 
         println!(">> Export");
-        println!("Pages: {:>13}", pages.len().separate_with_underscores());
-        println!("Links: {:>13}", links.len().separate_with_underscores());
-        data::write_to_file(data, &pages, &links, &graph)?;
+        println!(
+            "Pages: {:>13}",
+            data.pages.len().separate_with_underscores()
+        );
+        println!(
+            "Links: {:>13}",
+            data.links.len().separate_with_underscores()
+        );
+        data.write_to_file(brood_data)?;
 
         Ok(())
     }

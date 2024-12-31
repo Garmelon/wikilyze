@@ -2,7 +2,7 @@ use std::{io, path::Path};
 
 use crate::{
     algo::Dijkstra,
-    data,
+    data::Data,
     util::{self, TitleNormalizer},
 };
 
@@ -18,22 +18,22 @@ impl Cmd {
         let normalizer = TitleNormalizer::new();
 
         println!(">> Import");
-        let (pages, _links, graph) = data::read_from_file(data)?;
+        let data = Data::read_from_file(data)?;
 
         println!(">> Resolve articles");
-        let start = util::resolve_title(&normalizer, &pages, &graph, &self.start);
-        let goal = util::resolve_title(&normalizer, &pages, &graph, &self.goal);
-        println!("Start: {}", pages[start.usize()].title);
-        println!("Goal:  {}", pages[goal.usize()].title);
+        let start = util::resolve_title(&normalizer, &data, &self.start);
+        let goal = util::resolve_title(&normalizer, &data, &self.goal);
+        println!("Start: {}", data.pages[start.usize()].title);
+        println!("Goal:  {}", data.pages[goal.usize()].title);
 
         println!(">> Find path");
         println!("> Preparing dijkstra");
-        let mut dijkstra = Dijkstra::new(&graph);
+        let mut dijkstra = Dijkstra::new(&data.graph);
         println!("> Running dijkstra");
         dijkstra.run(
             start,
             |node| node == goal,
-            |source, _edge, _target| !pages[source.usize()].redirect as u32,
+            |source, _edge, _target| !data.pages[source.usize()].redirect as u32,
         );
 
         if dijkstra.cost(goal) == u32::MAX {
@@ -48,7 +48,7 @@ impl Cmd {
         println!();
         println!("Path found (cost {cost}, length {}):", path.len());
         for page in path {
-            let info = &pages[page.usize()];
+            let info = &data.pages[page.usize()];
             if info.redirect {
                 println!("v {:?}", info.title);
             } else {

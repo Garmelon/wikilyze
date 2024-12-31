@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Range, Sub, SubAssign};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeIdx(pub u32);
 
 impl NodeIdx {
@@ -85,7 +85,7 @@ impl SubAssign<u32> for NodeIdx {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EdgeIdx(pub u32);
 
 impl EdgeIdx {
@@ -242,6 +242,11 @@ impl Graph {
         Edges::new(self)
     }
 
+    pub fn edges_for(&self, node: NodeIdx) -> impl Iterator<Item = (EdgeIdx, NodeIdx)> + '_ {
+        self.edge_range(node)
+            .map(|i| (EdgeIdx::new(i), self.edges[i]))
+    }
+
     pub fn edge_start(&self, node: NodeIdx) -> EdgeIdx {
         self.nodes
             .get(node.usize())
@@ -255,7 +260,7 @@ impl Graph {
         start.usize()..end.usize()
     }
 
-    pub fn edges_for(&self, node: NodeIdx) -> &[NodeIdx] {
+    pub fn edge_slice(&self, node: NodeIdx) -> &[NodeIdx] {
         &self.edges[self.edge_range(node)]
     }
 }
@@ -283,15 +288,15 @@ impl Iterator for Edges<'_> {
         if self.ei.usize() >= self.graph.edges.len() {
             return None;
         }
-        let to = self.graph.edges[self.ei.usize()];
+        let target = self.graph.edges[self.ei.usize()];
 
         // if would not be sufficient because some nodes may not have any edges.
         while self.ei >= self.graph.edge_start(self.ni + 1) {
             self.ni += 1;
         }
-        let from = self.ni;
+        let source = self.ni;
 
         self.ei += 1;
-        Some((from, to))
+        Some((source, target))
     }
 }
