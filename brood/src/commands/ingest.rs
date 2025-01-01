@@ -5,14 +5,29 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::Deserialize;
 use thousands::Separable;
 
 use crate::{
     data::{Data, Link, Page},
     graph::NodeIdx,
-    util::{Counter, TitleNormalizer},
+    util::TitleNormalizer,
 };
+
+const PROGRESS_CHARS: &str = "█▉▊▋▌▍▎▏  ";
+
+fn seek_to_start(f: &mut BufReader<File>) -> io::Result<u64> {
+    let size = f.seek(io::SeekFrom::End(0))?;
+    f.seek(io::SeekFrom::Start(0))?;
+    Ok(size)
+}
+
+fn file_progress_style() -> ProgressStyle {
+    ProgressStyle::with_template("{wide_bar} {bytes}/{total_bytes}")
+        .unwrap()
+        .progress_chars(PROGRESS_CHARS)
+}
 
 #[derive(Deserialize)]
 struct JsonPage {
@@ -23,17 +38,17 @@ struct JsonPage {
     redirect: Option<String>,
 }
 
-fn read_titles(r: &mut BufReader<File>) -> io::Result<Vec<String>> {
-    let mut counter = Counter::new();
+fn read_titles(f: &mut BufReader<File>) -> io::Result<Vec<String>> {
+    let size = seek_to_start(f)?;
+    let bar = ProgressBar::new(size).with_style(file_progress_style());
+
     let mut titles = vec![];
 
-    for line in r.lines() {
-        counter.tick();
+    for line in bar.wrap_read(f).lines() {
         let page = serde_json::from_str::<JsonPage>(&line?).unwrap();
         titles.push(page.title);
     }
 
-    counter.done();
     Ok(titles)
 }
 
@@ -49,12 +64,12 @@ fn compute_title_lookup(
     normalizer: &TitleNormalizer,
     titles: &[String],
 ) -> HashMap<String, (u32, u32)> {
-    let mut counter = Counter::new();
     let mut title_lookup = HashMap::<String, (u32, u32)>::new();
 
-    for (sift_i, title) in titles.iter().enumerate() {
-        counter.tick();
+    let bar = ProgressBar::new(titles.len() as u64)
+        .with_style(ProgressStyle::default_bar().progress_chars(PROGRESS_CHARS));
 
+    for (sift_i, title) in bar.wrap_iter(titles.iter()).enumerate() {
         // The index where this article will appear in the final list, assuming
         // it is not a duplicate. For ownership reasons, we compute this here
         // instead of inside the Entry::Vacant branch of the following match.
@@ -68,31 +83,33 @@ fn compute_title_lookup(
                 let prev_sift_i = entry.get().0;
                 let prev = &titles[prev_sift_i as usize];
                 if prev == title {
-                    println!("  {title:?} ({prev_sift_i}) occurs again at {sift_i}");
+                    bar.println(format!(
+                        "  {title:?} ({prev_sift_i}) occurs again at {sift_i}"
+                    ));
                 } else {
-                    println!(
-                        "  {prev:?} ({prev_sift_i}) and {title:?} ({sift_i}) both normalize to {:?}",
+                    bar.println(format!(
+                        "  {prev:?} ({prev_sift_i}) and {title:?} ({sift_i}) normalize to {:?}",
                         normalizer.normalize(title)
-                    );
+                    ));
                 }
             }
         }
     }
 
-    counter.done();
     title_lookup
 }
 
 fn read_page_data(
     normalizer: &TitleNormalizer,
     title_lookup: &HashMap<String, (u32, u32)>,
-    r: &mut BufReader<File>,
+    f: &mut BufReader<File>,
 ) -> io::Result<Data> {
-    let mut counter = Counter::new();
+    let size = seek_to_start(f)?;
+    let bar = ProgressBar::new(size).with_style(file_progress_style());
+
     let mut data = Data::new();
 
-    for (i, line) in r.lines().enumerate() {
-        counter.tick();
+    for (i, line) in bar.wrap_read(f).lines().enumerate() {
         let page = serde_json::from_str::<JsonPage>(&line?).unwrap();
         let normalized = normalizer.normalize(&page.title);
 
@@ -100,7 +117,10 @@ fn read_page_data(
         if i as u32 != sift_i {
             // Articles may occur multiple times, and this is not the instance
             // of the article we should keep.
-            println!("  Skipping {:?} ({i}) in favor of {sift_i}", page.title);
+            bar.println(format!(
+                "  Skipping {:?} ({i}) in favor of {sift_i}",
+                page.title
+            ));
             continue;
         }
 
@@ -127,7 +147,6 @@ fn read_page_data(
         }
     }
 
-    counter.done();
     Ok(data)
 }
 
@@ -153,7 +172,6 @@ impl Cmd {
         drop(titles); // Don't hoard memory
 
         println!(">> Second pass");
-        sift_data.seek(io::SeekFrom::Start(0))?;
 
         println!("> Reading page data");
         let data = read_page_data(&normalizer, &title_lookup, &mut sift_data)?;
