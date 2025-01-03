@@ -1,45 +1,11 @@
-use std::{collections::HashSet, fmt, time::Instant};
+use std::{collections::HashSet, fmt};
 
 use regex::Regex;
-use thousands::Separable;
 
 use crate::{
     data::{Data, Page},
     graph::NodeIdx,
 };
-
-pub struct Counter {
-    n: usize,
-    last_print: Instant,
-}
-
-impl Counter {
-    pub fn new() -> Self {
-        Self {
-            n: 0,
-            last_print: Instant::now(),
-        }
-    }
-
-    pub fn tick(&mut self) {
-        self.n += 1;
-        if self.n % 10_000 != 0 {
-            return;
-        }
-
-        let now = Instant::now();
-        if now.duration_since(self.last_print).as_secs() < 4 {
-            return;
-        }
-
-        println!("{:>12}", self.n.separate_with_underscores());
-        self.last_print = now;
-    }
-
-    pub fn done(&self) {
-        println!("{:>12} (done)", self.n.separate_with_underscores());
-    }
-}
 
 // https://github.com/wikimedia/mediawiki-title/blob/6880ae1a9ffdfa2eea9fd75b472493a67dabcc48/lib/mediawiki.Title.phpCharToUpper.js
 struct PhpCharToUpper(char);
